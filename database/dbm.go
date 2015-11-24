@@ -1,9 +1,9 @@
 package dbm
 
 import (
+	"gotools"
 	"log"
 	"math/rand"
-	"tools"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"

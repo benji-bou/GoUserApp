@@ -1,10 +1,10 @@
 package user
 
 import (
-	"app/database"
-	"app/security"
 	"errors"
 	"fmt"
+	"goappuser/database"
+	"goappuser/security"
 	"log"
 	"net/http"
 	"time"
