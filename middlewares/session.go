@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/context"
 	"github.com/gorilla/sessions"
 )
 
@@ -30,6 +31,6 @@ func sessionMiddleware(w http.ResponseWriter, r *http.Request, next func()) {
 		return
 	}
 	log.Println(session)
-	// (*r).Session = session
+	context.Set(r, "Session", session)
 	next()
 }
