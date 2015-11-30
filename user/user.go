@@ -26,7 +26,7 @@ type Manager interface {
 
 //NewUser create a basic user with the mandatory parameters for each users
 func NewUser(email, password string) *User {
-	return &User{Email: email, Password: []byte(password)}
+	return &User{Email: email, Password: []byte(password), Role: "user"}
 }
 
 //User Represent a basic user
@@ -40,6 +40,7 @@ type User struct {
 	DateLastConnection time.Time   `bson:"lastconnection" json:"lastconnection,omitempty"`
 	BirthDate          time.Time   `bson:"birthdate" json:"birthdate,omitempty"`
 	AdditionalInfos    interface{} `bson:"infos" json:"infos,omitempty"`
+	Role               string      `bson:"role" json:"-"`
 }
 
 //NewDBManage create a db manager user
