@@ -19,14 +19,18 @@ func (f MiddlewareHandlerFunc) Middle(w http.ResponseWriter, r *http.Request, ne
 }
 
 //NewMiddlewares create pointer to Middlewares
-func NewMiddlewares() *Middlewares {
-	return &Middlewares{}
+func NewMiddlewares(hs ...MiddlewareHandler) *Middlewares {
+	mdl := &Middlewares{}
+	mdl.Use(hs...)
+	return mdl
 }
 
 //NewMiddlewaresFunc create new Middleware with first Middleware
-func NewMiddlewaresFunc(f MiddlewareHandlerFunc) *Middlewares {
+func NewMiddlewaresFunc(fs ...MiddlewareHandlerFunc) *Middlewares {
 	mdl := &Middlewares{}
-	mdl.UseFunc(f)
+	for _, f := range fs {
+		mdl.UseFunc(f)
+	}
 	return mdl
 }
 
@@ -36,22 +40,25 @@ type Middlewares struct {
 }
 
 //Use add a middleWareHandler to the queue
-func (m *Middlewares) Use(newMiddles ...MiddlewareHandler) {
+func (m *Middlewares) Use(newMiddles ...MiddlewareHandler) *Middlewares {
 	m.middles = append(m.middles, newMiddles...)
+	return m
 }
 
 //UseFunc add a Middleware as a function
-func (m *Middlewares) UseFunc(newMiddleFunc MiddlewareHandlerFunc) {
+func (m *Middlewares) UseFunc(newMiddleFunc MiddlewareHandlerFunc) *Middlewares {
 	m.middles = append(m.middles, newMiddleFunc)
+	return m
 }
 
 //UseHandler wrapp a basic http.Handler to use it as a middleware
-func (m *Middlewares) UseHandler(handle http.Handler) {
+func (m *Middlewares) UseHandler(handle http.Handler) *Middlewares {
 	var wrapper MiddlewareHandlerFunc = func(w http.ResponseWriter, r *http.Request, next func()) {
 		handle.ServeHTTP(w, r)
 		next()
 	}
 	m.middles = append(m.middles, wrapper)
+	return m
 }
 
 func (m *Middlewares) ServeHTTP(w http.ResponseWriter, r *http.Request) {

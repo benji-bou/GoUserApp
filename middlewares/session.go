@@ -29,6 +29,7 @@ func sessionMiddleware(w http.ResponseWriter, r *http.Request, next func()) {
 		log.Println("in session return")
 		return
 	}
+	log.Println("In session values retrieved ", session.Values)
 	context.Set(r, "Session", session)
 	next()
 }

@@ -28,6 +28,7 @@ func accessControl(w http.ResponseWriter, r *http.Request, next func()) {
 			if r.Method == "OPTIONS" {
 				log.Println("Options Method accepted")
 				fmt.Fprint(w, http.StatusAccepted)
+				return
 			}
 		}
 	}
