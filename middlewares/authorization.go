@@ -24,10 +24,15 @@ func (a *AuthorizationMiddlewareHandler) Middle(w http.ResponseWriter, r *http.R
 		log.Println("user session role", usr.Role)
 		for _, elem := range a.roles {
 			if elem == usr.Role {
+				log.Println("auth ok", usr.Name)
 				next()
 				return
 			}
 		}
+		log.Println("User not authorize", usr)
+	} else {
+		log.Println("User not found in session", usr)
+
 	}
 	http.Error(w, "Vous n'êtes pas authentifié", http.StatusForbidden)
 }

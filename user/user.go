@@ -103,6 +103,7 @@ func (m *DBManage) Authenticate(r *http.Request) (*User, error) {
 		return nil, errors.New("User not found")
 	}
 	if ok := m.auth.Compare([]byte(password), user.Password); ok == true {
+
 		return user, nil
 	}
 	return nil, errors.New("Invalid credentials")
