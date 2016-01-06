@@ -20,11 +20,12 @@ type AuthorizationMiddlewareHandler struct {
 func (a *AuthorizationMiddlewareHandler) Middle(w http.ResponseWriter, r *http.Request, next func()) {
 	log.Println("auth with roles accepted", a.roles)
 	session := context.Get(r, "Session").(*sessions.Session)
-	if usr, isOk := session.Values["user"].(user.User); isOk {
+	log.Println("session found in context ", session)
+	if usr, isOk := session.Values["user"].(*user.User); isOk {
 		log.Println("user session role", usr.Role)
 		for _, elem := range a.roles {
 			if elem == usr.Role {
-				log.Println("auth ok", usr.Name)
+				log.Println("auth ok", usr.Email)
 				next()
 				return
 			}

@@ -21,7 +21,7 @@ func NewSessionMiddleware(store sessions.Store) MiddlewareHandlerFunc {
 }
 
 func sessionMiddleware(w http.ResponseWriter, r *http.Request, next func()) {
-	session, err := sessionStore.Get(r, "session-key")
+	session, err := sessionStore.Get(r, "session-mariage")
 	if err != nil {
 		log.Println("Middleware Session error = ", err)
 		app.JSONResp(w, app.RequestError{"Session", "Cannot retrieve session", 0})
