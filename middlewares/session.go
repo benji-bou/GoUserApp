@@ -1,35 +1,25 @@
 package middlewares
 
 import (
-
-	// "github.com/gorilla/context"
-	"fmt"
-	"goappuser"
+	"github.com/labstack/echo"
 	"log"
 	"net/http"
-
-	"github.com/gorilla/context"
-	"github.com/gorilla/sessions"
 )
 
-var sessionStore sessions.Store
+// "github.com/gorilla/context"
 
-//NewSessionMiddleware create a Session Middleware
-func NewSessionMiddleware(store sessions.Store) MiddlewareHandlerFunc {
-	sessionStore = store
-	return sessionMiddleware
-}
-
-func sessionMiddleware(w http.ResponseWriter, r *http.Request, next func()) {
-	session, err := sessionStore.Get(r, "session-mariage")
-	if err != nil {
-		log.Println("Middleware Session error = ", err)
-		app.JSONResp(w, app.RequestError{"Session", "Cannot retrieve session", 0})
-		fmt.Fprint(w, http.StatusInternalServerError)
-		log.Println("in session return")
-		return
+func loggerMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		log.Println(r.URL)
+		next(c)
 	}
-	log.Println("In session values retrieved ", session.Values)
-	context.Set(r, "Session", session)
-	next()
 }
+ruct {
+	roles []string
+}
+
+func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		log.Println("auth with roles accepted", a.roles)
+		session := context.Get(r, "Session").(*sessions.Session)
+		log.Println("sessio
