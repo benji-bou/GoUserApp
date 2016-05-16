@@ -34,7 +34,9 @@ type Modeler interface {
 }
 
 func NewMongoDatabaseSession(host, port, db_name, username, password string) *MongoDatabaseSession {
-	return &MongoDatabaseSession{host, port, db_name, username, password, nil}
+	mongo := &MongoDatabaseSession{host, port, db_name, username, password, nil}
+	log.Println("mongo loaded")
+	return mongo
 }
 
 func configureMongoDatabaseSession(session *mgo.Session) {

@@ -3,10 +3,10 @@ package user
 import (
 	"errors"
 	"fmt"
+	"github.com/labstack/echo"
 	"goappuser/database"
 	"goappuser/security"
 	"log"
-	"net/http"
 	"time"
 )
 
@@ -21,7 +21,7 @@ type Manager interface {
 	//GetByEmail retrieve a user using its email
 	GetByEmail(string) (*User, error)
 	//Authenticate
-	Authenticate(r *http.Request) (*User, error)
+	Authenticate(c echo.Context) (*User, error)
 }
 
 //NewUser create a basic user with the mandatory parameters for each users
@@ -43,19 +43,19 @@ type User struct {
 	Role               string      `bson:"role" json:"-"`
 }
 
-//NewDBUserManager create a db manager user
-func NewDBUserManager(db dbm.DatabaseQuerier, auth security.AuthenticationProcesser) *DBUserManager {
-	return &DBUserManager{db: db, auth: auth}
+//NewDBUserManage create a db manager user
+func NewDBUserManage(db dbm.DatabaseQuerier, auth security.AuthenticationProcesser) *DBUserManage {
+	return &DBUserManage{db: db, auth: auth}
 }
 
-//DBUserManager respect Manager Interface using MGO (MongoDB driver)
-type DBUserManager struct {
+//DBUserManage respect Manager Interface using MGO (MongoDB driver)
+type DBUserManage struct {
 	db   dbm.DatabaseQuerier
 	auth security.AuthenticationProcesser
 }
 
 //Register register as a new user
-func (m *DBUserManager) Register(user *User) error {
+func (m *DBUserManage) Register(user *User) error {
 	if !m.IsExist(user) {
 		return errors.New("mail already register")
 	}
@@ -71,17 +71,17 @@ func (m *DBUserManager) Register(user *User) error {
 }
 
 //IsExist check existence of the user
-func (m *DBUserManager) IsExist(user *User) bool {
+func (m *DBUserManage) IsExist(user *User) bool {
 	return m.db.IsExist(user)
 }
 
 //ResetPassword user with specifics credentials
-func (m *DBUserManager) ResetPassword(user *User, newPassword string) bool {
+func (m *DBUserManage) ResetPassword(user *User, newPassword string) bool {
 	return false
 }
 
 //GetByEmail retrieve a user using its email
-func (m *DBUserManager) GetByEmail(email string) (*User, error) {
+func (m *DBUserManage) GetByEmail(email string) (*User, error) {
 	user := &User{}
 	if err := m.db.GetOneModel(dbm.M{"email": email}, user); err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func (m *DBUserManager) GetByEmail(email string) (*User, error) {
 }
 
 //Authenticate log the user
-func (m *DBUserManager) Authenticate(c echo.Context) (*User, error) {
+func (m *DBUserManage) Authenticate(c echo.Context) (*User, error) {
 	username, password, err := m.auth.GetCredentials(c)
 	if err != nil {
 		log.Println("Login Error :", err)
