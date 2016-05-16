@@ -43,19 +43,19 @@ type User struct {
 	Role               string      `bson:"role" json:"-"`
 }
 
-//NewDBManage create a db manager user
-func NewDBManage(db dbm.DatabaseQuerier, auth security.AuthenticationProcesser) *DBManage {
-	return &DBManage{db: db, auth: auth}
+//NewDBUserManager create a db manager user
+func NewDBUserManager(db dbm.DatabaseQuerier, auth security.AuthenticationProcesser) *DBUserManager {
+	return &DBUserManager{db: db, auth: auth}
 }
 
-//DBManage respect Manager Interface using MGO (MongoDB driver)
-type DBManage struct {
+//DBUserManager respect Manager Interface using MGO (MongoDB driver)
+type DBUserManager struct {
 	db   dbm.DatabaseQuerier
 	auth security.AuthenticationProcesser
 }
 
 //Register register as a new user
-func (m *DBManage) Register(user *User) error {
+func (m *DBUserManager) Register(user *User) error {
 	if !m.IsExist(user) {
 		return errors.New("mail already register")
 	}
@@ -71,17 +71,17 @@ func (m *DBManage) Register(user *User) error {
 }
 
 //IsExist check existence of the user
-func (m *DBManage) IsExist(user *User) bool {
+func (m *DBUserManager) IsExist(user *User) bool {
 	return m.db.IsExist(user)
 }
 
 //ResetPassword user with specifics credentials
-func (m *DBManage) ResetPassword(user *User, newPassword string) bool {
+func (m *DBUserManager) ResetPassword(user *User, newPassword string) bool {
 	return false
 }
 
 //GetByEmail retrieve a user using its email
-func (m *DBManage) GetByEmail(email string) (*User, error) {
+func (m *DBUserManager) GetByEmail(email string) (*User, error) {
 	user := &User{}
 	if err := m.db.GetOneModel(dbm.M{"email": email}, user); err != nil {
 		return nil, err
@@ -90,8 +90,8 @@ func (m *DBManage) GetByEmail(email string) (*User, error) {
 }
 
 //Authenticate log the user
-func (m *DBManage) Authenticate(r *http.Request) (*User, error) {
-	username, password, err := m.auth.GetCredentials(r)
+func (m *DBUserManager) Authenticate(c echo.Context) (*User, error) {
+	username, password, err := m.auth.GetCredentials(c)
 	if err != nil {
 		log.Println("Login Error :", err)
 		return nil, errors.New(fmt.Sprint("Failed to retrieve credentials from request: ", err))
