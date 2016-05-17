@@ -6,6 +6,10 @@ import (
 	"github.com/labstack/echo"
 	"goappuser/database"
 	"goappuser/security"
+	"goappuser/session"
+
+	"gopkg.in/mgo.v2"
+	"gotools"
 	"log"
 	"time"
 )
@@ -44,35 +48,45 @@ type User struct {
 }
 
 //NewDBUserManage create a db manager user
-func NewDBUserManage(db dbm.DatabaseQuerier, auth security.AuthenticationProcesser) *DBUserManage {
-	return &DBUserManage{db: db, auth: auth}
+func NewDBUserManage(db dbm.DatabaseQuerier, auth security.AuthenticationProcesser, sm *sessions.Manager) *DBUserManage {
+	return &DBUserManage{db: db, auth: auth, sessionManager: sm}
 }
 
 //DBUserManage respect Manager Interface using MGO (MongoDB driver)
 type DBUserManage struct {
-	db   dbm.DatabaseQuerier
-	auth security.AuthenticationProcesser
+	db             dbm.DatabaseQuerier
+	auth           security.AuthenticationProcesser
+	sessionManager *sessions.Manager
 }
 
 //Register register as a new user
 func (m *DBUserManage) Register(user *User) error {
-	if !m.IsExist(user) {
+	if m.IsExist(user) {
 		return errors.New("mail already register")
 	}
+
 	pass, errHash := m.auth.Hash(user.Password)
 	if errHash != nil {
 		return errHash
 	}
 	user.Password = pass
-	if errInsert := m.db.InsertModel(user); len(errInsert) > 0 {
-		return errInsert[0]
+	if errInsert := m.db.InsertModel(user); errInsert != nil {
+		log.Println("error insert", errInsert)
+		return errInsert
 	}
+	log.Println("insert OK")
 	return nil
 }
 
 //IsExist check existence of the user
 func (m *DBUserManage) IsExist(user *User) bool {
-	return m.db.IsExist(user)
+	if u, err := m.GetByEmail(user.Email); err == nil {
+		log.Println("IsExist user ", u)
+		return tools.NotEmpty(u)
+	} else if err == mgo.ErrNotFound {
+		return false
+	}
+	return false
 }
 
 //ResetPassword user with specifics credentials
@@ -93,7 +107,6 @@ func (m *DBUserManage) GetByEmail(email string) (*User, error) {
 func (m *DBUserManage) Authenticate(c echo.Context) (*User, error) {
 	username, password, err := m.auth.GetCredentials(c)
 	if err != nil {
-		log.Println("Login Error :", err)
 		return nil, errors.New(fmt.Sprint("Failed to retrieve credentials from request: ", err))
 	}
 
@@ -103,7 +116,7 @@ func (m *DBUserManage) Authenticate(c echo.Context) (*User, error) {
 		return nil, errors.New("User not found")
 	}
 	if ok := m.auth.Compare([]byte(password), user.Password); ok == true {
-
+		m.sessionManager.CreateSession(c, user)
 		return user, nil
 	}
 	return nil, errors.New("Invalid credentials")
