@@ -3,9 +3,15 @@ package middlewares
 import (
 	"errors"
 	"github.com/labstack/echo"
-	sessions "goappuser/session"
-	"goappuser/user"
+	"goappuser/models"
 	"log"
+	"net/http"
+)
+
+var (
+	ErrUserNotAuthorized = errors.New("User not authorize")
+	ErrUserRolesNotMatch = errors.New("User doesn't have corrects roles")
+	ErrNoSessionUser     = errors.New("No user session found")
 )
 
 func NewAuthorizationMiddleware(roles ...string) *AuthorizationMiddlewareHandler {
@@ -19,9 +25,13 @@ type AuthorizationMiddlewareHandler struct {
 func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		log.Println("auth with roles accepted", a.roles)
-		session := c.Get("Session").(*sessions.Session)
+		session, isOk := c.Get("Session").(models.Session)
+		if !isOk {
+			c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserNotAuthorized.Error(), Code: 0})
+			return ErrUserNotAuthorized
+		}
 		log.Println("session found in context ", session)
-		usr := session.User.(*user.User)
+		usr := session.User
 		log.Println("user session role", usr.Role)
 		for _, elem := range a.roles {
 			if elem == usr.Role {
@@ -30,6 +40,7 @@ func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.Han
 				return nil
 			}
 		}
-		return errors.New("User not authorize")
+		c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserRolesNotMatch.Error(), Code: 0})
+		return ErrUserRolesNotMatch
 	}
 }

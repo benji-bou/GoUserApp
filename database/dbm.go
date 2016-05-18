@@ -140,7 +140,10 @@ func (db *MongoDatabaseSession) InsertModel(model ...interface{}) error {
 			err.Errs = append(err.Errs, errTmp)
 		}
 	}
-	return err
+	if len(err.Errs) > 0 {
+		return err
+	}
+	return nil
 }
 
 // func (db *MongoDatabaseSession) IsExist(result interface{}) bool {

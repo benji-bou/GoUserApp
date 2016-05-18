@@ -1,4 +1,4 @@
-package user
+package models
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 	"github.com/labstack/echo"
 	"goappuser/database"
 	"goappuser/security"
-	"goappuser/session"
 
 	"gopkg.in/mgo.v2"
 	"gotools"
@@ -15,7 +14,7 @@ import (
 )
 
 //Manager interface to implements all feature to manage user
-type Manager interface {
+type UserManager interface {
 	//Register register as a new user
 	Register(*User) error
 	//IsExist check existence of the user
@@ -25,7 +24,7 @@ type Manager interface {
 	//GetByEmail retrieve a user using its email
 	GetByEmail(string) (*User, error)
 	//Authenticate
-	Authenticate(c echo.Context) (*User, error)
+	Authenticate(c *echo.Context) (*User, error)
 }
 
 //NewUser create a basic user with the mandatory parameters for each users
@@ -48,7 +47,7 @@ type User struct {
 }
 
 //NewDBUserManage create a db manager user
-func NewDBUserManage(db dbm.DatabaseQuerier, auth security.AuthenticationProcesser, sm *sessions.Manager) *DBUserManage {
+func NewDBUserManage(db dbm.DatabaseQuerier, auth security.AuthenticationProcesser, sm *SessionManager) *DBUserManage {
 	return &DBUserManage{db: db, auth: auth, sessionManager: sm}
 }
 
@@ -56,7 +55,7 @@ func NewDBUserManage(db dbm.DatabaseQuerier, auth security.AuthenticationProcess
 type DBUserManage struct {
 	db             dbm.DatabaseQuerier
 	auth           security.AuthenticationProcesser
-	sessionManager *sessions.Manager
+	sessionManager *SessionManager
 }
 
 //Register register as a new user
@@ -71,7 +70,7 @@ func (m *DBUserManage) Register(user *User) error {
 	}
 	user.Password = pass
 	if errInsert := m.db.InsertModel(user); errInsert != nil {
-		log.Println("error insert", errInsert)
+		log.Println("error insert", errInsert, " user: ", user.Email)
 		return errInsert
 	}
 	log.Println("insert OK")
@@ -104,19 +103,24 @@ func (m *DBUserManage) GetByEmail(email string) (*User, error) {
 }
 
 //Authenticate log the user
-func (m *DBUserManage) Authenticate(c echo.Context) (*User, error) {
-	username, password, err := m.auth.GetCredentials(c)
+func (m *DBUserManage) Authenticate(c *echo.Context) (*User, error) {
+	if session, isOk := (*c).Get("Session").(Session); isOk {
+		return session.User, errors.New("Already authenticate")
+	}
+	username, password, err := m.auth.GetCredentials(*c)
 	if err != nil {
 		return nil, errors.New(fmt.Sprint("Failed to retrieve credentials from request: ", err))
 	}
 
 	user, err := m.GetByEmail(username)
 	if err != nil {
-		log.Println("Error logged in:", err)
 		return nil, errors.New("User not found")
 	}
 	if ok := m.auth.Compare([]byte(password), user.Password); ok == true {
-		m.sessionManager.CreateSession(c, user)
+
+		if _, cookie, err := m.sessionManager.CreateSession(user); err == nil {
+			(*c).SetCookie(cookie)
+		}
 		return user, nil
 	}
 	return nil, errors.New("Invalid credentials")
