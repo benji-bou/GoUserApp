@@ -125,3 +125,12 @@ func (m *DBUserManage) Authenticate(c *echo.Context) (*User, error) {
 	}
 	return nil, errors.New("Invalid credentials")
 }
+
+func (m *DBUserManage) cleanSession(c echo.Context) error {
+	if _, isOk := c.Get("Session").(Session); isOk {
+		return errors.New("No session found")
+	}
+	return nil
+	//TODO: use m.db.Remove Model to remove the session
+	//	m.db.
+}

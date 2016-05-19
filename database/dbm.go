@@ -25,6 +25,8 @@ type DatabaseQuerier interface {
 	GetModels(mongoQuery M, resultInterface interface{}, limit int, skip int) (interface{}, error)
 	GetOneModel(mongoQuery M, result interface{}) error
 	InsertModel(model ...interface{}) error
+	//TODO: Create RemoveModel
+	//TODO: make isExist work
 	// IsExist(result interface{}) bool
 }
 
