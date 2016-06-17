@@ -13,37 +13,85 @@ import (
 	"time"
 )
 
+var (
+	ErrAlreadyRegister    = errors.New("mail already register")
+	ErrAlreadyAuth        = errors.New("Already authenticate")
+	ErrUserNotFound       = errors.New("User not found")
+	ErrInvalidCredentials = errors.New("Invalid credentials")
+	ErrNoSession          = errors.New("No session found")
+)
+
 //Manager interface to implements all feature to manage user
 type UserManager interface {
 	//Register register as a new user
-	Register(*User) error
+	Register(User) error
 	//IsExist check existence of the user
-	IsExist(*User) bool
+	IsExist(User) bool
 	//ResetPassword user with specifics credentials
-	ResetPassword(*User, string) bool
+	ResetPassword(User, string) bool
 	//GetByEmail retrieve a user using its email
-	GetByEmail(string) (*User, error)
+	GetByEmail(email string, user User) error
 	//Authenticate
-	Authenticate(c *echo.Context) (*User, error)
+	Authenticate(c *echo.Context, user User) (User, error)
 }
 
 //NewUser create a basic user with the mandatory parameters for each users
-func NewUser(email, password string) *User {
-	return &User{Email: email, Password: []byte(password), Role: "user"}
+func NewUserDefaultExtended(email, password string) *UserDefaultExtended {
+	return &UserDefaultExtended{UserDefault: &UserDefault{email: email, password: []byte(password), role: "user"}}
 }
 
 //User Represent a basic user
-type User struct {
-	Name               string      `bson:"name" json:"name"`
-	Surname            string      `bson:"surname" json:"surname"`
-	Pseudo             string      `bson:"pseudo" json:"pseudo"`
-	Password           []byte      `bson:"password" json:"-"`
-	Email              string      `bson:"email" json:"email"`
-	DateCreate         time.Time   `bson:"created" json:"created"`
-	DateLastConnection time.Time   `bson:"lastconnection" json:"lastconnection,omitempty"`
-	BirthDate          time.Time   `bson:"birthdate" json:"birthdate,omitempty"`
-	AdditionalInfos    interface{} `bson:"infos" json:"infos,omitempty"`
-	Role               string      `bson:"role" json:"-"`
+
+//TODO: Change User to an interface
+type User interface {
+	Email() string
+	SetEmail(email string)
+	Password() []byte
+	SetPassword(pass []byte)
+	Role() string
+	SetRole(role string)
+}
+
+//User Represent a basic user
+
+type UserDefault struct {
+	password []byte `bson:"password" json:"-"`
+	email    string `bson:"email" json:"email"`
+	role     string `bson:"role" json:"-"`
+}
+
+type UserDefaultExtended struct {
+	*UserDefault       `bson:"credentials" json:"credentials"`
+	Name               string    `bson:"name" json:"name"`
+	Surname            string    `bson:"surname" json:"surname"`
+	Pseudo             string    `bson:"pseudo" json:"pseudo"`
+	DateCreate         time.Time `bson:"created" json:"created"`
+	DateLastConnection time.Time `bson:"lastconnection" json:"lastconnection,omitempty"`
+	BirthDate          time.Time `bson:"birthdate" json:"birthdate,omitempty"`
+}
+
+func (u *UserDefault) Email() string {
+	return u.email
+}
+
+func (u *UserDefault) SetEmail(email string) {
+	u.email = email
+
+}
+func (u *UserDefault) Password() []byte {
+	return u.password
+}
+
+func (u *UserDefault) SetPassword(pass []byte) {
+	u.password = pass
+}
+
+func (u *UserDefault) Role() string {
+	return u.role
+}
+
+func (u *UserDefault) SetRole(role string) {
+	u.role = role
 }
 
 //NewDBUserManage create a db manager user
@@ -59,18 +107,19 @@ type DBUserManage struct {
 }
 
 //Register register as a new user
-func (m *DBUserManage) Register(user *User) error {
+func (m *DBUserManage) Register(user User) error {
 	if m.IsExist(user) {
-		return errors.New("mail already register")
+		return ErrAlreadyRegister
 	}
 
-	pass, errHash := m.auth.Hash(user.Password)
+	pass, errHash := m.auth.Hash(user.Password())
 	if errHash != nil {
 		return errHash
 	}
-	user.Password = pass
+	user.SetPassword(pass)
+	log.Println("insert user", user)
 	if errInsert := m.db.InsertModel(user); errInsert != nil {
-		log.Println("error insert", errInsert, " user: ", user.Email)
+		log.Println("error insert", errInsert, " user: ", user.Email())
 		return errInsert
 	}
 	log.Println("insert OK")
@@ -78,8 +127,9 @@ func (m *DBUserManage) Register(user *User) error {
 }
 
 //IsExist check existence of the user
-func (m *DBUserManage) IsExist(user *User) bool {
-	if u, err := m.GetByEmail(user.Email); err == nil {
+func (m *DBUserManage) IsExist(user User) bool {
+	u := &UserDefault{}
+	if err := m.GetByEmail(user.Email(), u); err == nil {
 		log.Println("IsExist user ", u)
 		return tools.NotEmpty(u)
 	} else if err == mgo.ErrNotFound {
@@ -89,46 +139,45 @@ func (m *DBUserManage) IsExist(user *User) bool {
 }
 
 //ResetPassword user with specifics credentials
-func (m *DBUserManage) ResetPassword(user *User, newPassword string) bool {
+func (m *DBUserManage) ResetPassword(user User, newPassword string) bool {
 	return false
 }
 
 //GetByEmail retrieve a user using its email
-func (m *DBUserManage) GetByEmail(email string) (*User, error) {
-	user := &User{}
+func (m *DBUserManage) GetByEmail(email string, user User) error {
 	if err := m.db.GetOneModel(dbm.M{"email": email}, user); err != nil {
-		return nil, err
+		return err
 	}
-	return user, nil
+	return nil
 }
 
 //Authenticate log the user
-func (m *DBUserManage) Authenticate(c *echo.Context) (*User, error) {
+func (m *DBUserManage) Authenticate(c *echo.Context, user User) (User, error) {
 	if session, isOk := (*c).Get("Session").(Session); isOk {
-		return session.User, errors.New("Already authenticate")
+		return session.User, ErrAlreadyAuth
 	}
 	username, password, err := m.auth.GetCredentials(*c)
 	if err != nil {
 		return nil, errors.New(fmt.Sprint("Failed to retrieve credentials from request: ", err))
 	}
 
-	user, err := m.GetByEmail(username)
+	err = m.GetByEmail(username, user)
 	if err != nil {
-		return nil, errors.New("User not found")
+		return nil, ErrUserNotFound
 	}
-	if ok := m.auth.Compare([]byte(password), user.Password); ok == true {
+	if ok := m.auth.Compare([]byte(password), user.Password()); ok == true {
 
 		if _, cookie, err := m.sessionManager.CreateSession(user); err == nil {
 			(*c).SetCookie(cookie)
 		}
 		return user, nil
 	}
-	return nil, errors.New("Invalid credentials")
+	return nil, ErrInvalidCredentials
 }
 
 func (m *DBUserManage) cleanSession(c echo.Context) error {
 	if _, isOk := c.Get("Session").(Session); isOk {
-		return errors.New("No session found")
+		return ErrNoSession
 	}
 	return nil
 	//TODO: use m.db.Remove Model to remove the session

@@ -28,11 +28,12 @@ func NewSessionManager(isSecure bool, duration time.Time, db dbm.DatabaseQuerier
 	return manager
 }
 
-func (sm *SessionManager) CreateSession(user *User) (Session, *echo.Cookie, error) {
+func (sm *SessionManager) CreateSession(user User) (Session, *echo.Cookie, error) {
 	if session, err := NewSession(user); err != nil {
-		log.Println("error: ", err)
+		log.Println("error session: ", err)
 		return session, nil, err
 	} else {
+		log.Println("session insert")
 		errs := sm.db.InsertModel(session)
 		return session, writeSessionCookie(session), errs
 	}
@@ -42,11 +43,13 @@ func (sm *SessionManager) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		sessionId, err := readSessionCookie(c)
 		if err != nil {
+			log.Println("session err : ", err)
 			next(c)
 			return err
 		}
 		s := &Session{}
 		if errDB := sm.db.GetOneModel(dbm.M{"_id": sessionId}, s); errDB != nil {
+			log.Println("session err : ", errDB)
 			next(c)
 			return errDB
 		}
@@ -58,11 +61,11 @@ func (sm *SessionManager) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 
 type Session struct {
 	Id     bson.ObjectId          `bson:"_id" json:"id"`
-	User   *User                  `bson:"user" json:"user"`
+	User   User                   `bson:"user" json:"user"`
 	Values map[string]interface{} `bson:"values" json:"values"`
 }
 
-func NewSession(user *User) (Session, error) {
+func NewSession(user User) (Session, error) {
 	if manager == nil {
 		return Session{}, ErrSessionManagerUnvailable
 	}

@@ -27,14 +27,15 @@ func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.Han
 		log.Println("auth with roles accepted", a.roles)
 		session, isOk := c.Get("Session").(models.Session)
 		if !isOk {
+			log.Println("In Authorization Session not found")
 			c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserNotAuthorized.Error(), Code: 0})
 			return ErrUserNotAuthorized
 		}
 		log.Println("session found in context ", session)
 		usr := session.User
-		log.Println("user session role", usr.Role)
+		log.Println("user session role", usr.Role())
 		for _, elem := range a.roles {
-			if elem == usr.Role {
+			if elem == usr.Role() {
 				log.Println("auth ok", usr.Email)
 				next(c)
 				return nil
