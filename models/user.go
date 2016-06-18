@@ -37,31 +37,31 @@ type UserManager interface {
 
 //NewUser create a basic user with the mandatory parameters for each users
 func NewUserDefaultExtended(email, password string) *UserDefaultExtended {
-	return &UserDefaultExtended{UserDefault: &UserDefault{email: email, password: []byte(password), role: "user"}}
+	return &UserDefaultExtended{UserDefault: UserDefault{Email: email, Password: []byte(password), Role: "user"}}
 }
 
 //User Represent a basic user
 
 //TODO: Change User to an interface
 type User interface {
-	Email() string
+	GetEmail() string
 	SetEmail(email string)
-	Password() []byte
+	GetPassword() []byte
 	SetPassword(pass []byte)
-	Role() string
+	GetRole() string
 	SetRole(role string)
 }
 
 //User Represent a basic user
 
 type UserDefault struct {
-	password []byte `bson:"password" json:"-"`
-	email    string `bson:"email" json:"email"`
-	role     string `bson:"role" json:"-"`
+	Password []byte `bson:"password" json:"-"`
+	Email    string `bson:"email" json:"email"`
+	Role     string `bson:"role" json:"-"`
 }
 
 type UserDefaultExtended struct {
-	*UserDefault       `bson:"credentials" json:"credentials"`
+	UserDefault       `bson:"credentials,inline" json:"credentials,inline"`
 	Name               string    `bson:"name" json:"name"`
 	Surname            string    `bson:"surname" json:"surname"`
 	Pseudo             string    `bson:"pseudo" json:"pseudo"`
@@ -70,28 +70,28 @@ type UserDefaultExtended struct {
 	BirthDate          time.Time `bson:"birthdate" json:"birthdate,omitempty"`
 }
 
-func (u *UserDefault) Email() string {
-	return u.email
+func (u *UserDefault) GetEmail() string {
+	return u.Email
 }
 
 func (u *UserDefault) SetEmail(email string) {
-	u.email = email
+	u.Email = email
 
 }
-func (u *UserDefault) Password() []byte {
-	return u.password
+func (u *UserDefault) GetPassword() []byte {
+	return u.Password
 }
 
 func (u *UserDefault) SetPassword(pass []byte) {
-	u.password = pass
+	u.Password = pass
 }
 
-func (u *UserDefault) Role() string {
-	return u.role
+func (u *UserDefault) GetRole() string {
+	return u.Role
 }
 
 func (u *UserDefault) SetRole(role string) {
-	u.role = role
+	u.Role = role
 }
 
 //NewDBUserManage create a db manager user
@@ -112,14 +112,14 @@ func (m *DBUserManage) Register(user User) error {
 		return ErrAlreadyRegister
 	}
 
-	pass, errHash := m.auth.Hash(user.Password())
+	pass, errHash := m.auth.Hash(user.GetPassword())
 	if errHash != nil {
 		return errHash
 	}
 	user.SetPassword(pass)
 	log.Println("insert user", user)
 	if errInsert := m.db.InsertModel(user); errInsert != nil {
-		log.Println("error insert", errInsert, " user: ", user.Email())
+		log.Println("error insert", errInsert, " user: ", user.GetEmail())
 		return errInsert
 	}
 	log.Println("insert OK")
@@ -129,7 +129,7 @@ func (m *DBUserManage) Register(user User) error {
 //IsExist check existence of the user
 func (m *DBUserManage) IsExist(user User) bool {
 	u := &UserDefault{}
-	if err := m.GetByEmail(user.Email(), u); err == nil {
+	if err := m.GetByEmail(user.GetEmail(), u); err == nil {
 		log.Println("IsExist user ", u)
 		return tools.NotEmpty(u)
 	} else if err == mgo.ErrNotFound {
@@ -165,7 +165,7 @@ func (m *DBUserManage) Authenticate(c *echo.Context, user User) (User, error) {
 	if err != nil {
 		return nil, ErrUserNotFound
 	}
-	if ok := m.auth.Compare([]byte(password), user.Password()); ok == true {
+	if ok := m.auth.Compare([]byte(password), user.GetPassword()); ok == true {
 
 		if _, cookie, err := m.sessionManager.CreateSession(user); err == nil {
 			(*c).SetCookie(cookie)

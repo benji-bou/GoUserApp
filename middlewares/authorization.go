@@ -33,10 +33,10 @@ func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.Han
 		}
 		log.Println("session found in context ", session)
 		usr := session.User
-		log.Println("user session role", usr.Role())
+		log.Println("user session role", usr.GetRole())
 		for _, elem := range a.roles {
-			if elem == usr.Role() {
-				log.Println("auth ok", usr.Email)
+			if elem == usr.GetRole() {
+				log.Println("auth ok", usr.GetEmail())
 				next(c)
 				return nil
 			}
