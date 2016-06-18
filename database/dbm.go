@@ -2,18 +2,32 @@ package dbm
 
 import (
 	"gotools"
-	"log"
+	// "log"
 	"math/rand"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
+type DBError struct {
+	Errs []error
+}
+
+func (err *DBError) Error() string {
+	var desc = ""
+	for _, er := range err.Errs {
+		desc += " " + er.Error()
+	}
+	return desc
+}
+
 type DatabaseQuerier interface {
 	GetModels(mongoQuery M, resultInterface interface{}, limit int, skip int) (interface{}, error)
 	GetOneModel(mongoQuery M, result interface{}) error
-	InsertModel(model ...interface{}) []error
-	IsExist(result interface{}) bool
+	InsertModel(model ...interface{}) error
+	//TODO: Create RemoveModel
+	//TODO: make isExist work
+	// IsExist(result interface{}) bool
 }
 
 type M map[string]interface{}
@@ -40,6 +54,14 @@ func NewMongoDatabaseSession(host, port, db_name, username, password string) *Mo
 func configureMongoDatabaseSession(session *mgo.Session) {
 
 }
+
+// func (db *MongoDatabaseSession) getOrCreateCollection(collectionName string) *db.Collection {
+// 	defer func (collectionName) *mgo.Collection {
+// 		if r := recover(); r != nil {
+// 			db.Database.
+// 		}
+// 	}
+// }
 
 func (db *MongoDatabaseSession) Connect() error {
 	// log.Println("DB URL = " + db.host + ":" + db.port)
@@ -98,7 +120,6 @@ func (db *MongoDatabaseSession) GetModels(mongoQuery M, resultInterface interfac
 
 func (db *MongoDatabaseSession) GetOneModel(mongoQuery M, result interface{}) error {
 	collectionName := tools.GetInnerTypeName(result)
-	log.Println(collectionName)
 	collection := db.Database.C(collectionName)
 	err := collection.Find(bson.M(mongoQuery)).One(result)
 	return err
@@ -110,28 +131,31 @@ func (db *MongoDatabaseSession) GetOneModel(mongoQuery M, result interface{}) er
 // 	return err
 // }
 
-func (db *MongoDatabaseSession) InsertModel(model ...interface{}) []error {
+func (db *MongoDatabaseSession) InsertModel(model ...interface{}) error {
 	sortedModel := tools.SortArrayByType(model)
-	err := make([]error, 0)
+	err := &DBError{}
+	err.Errs = make([]error, 0)
 	for collectionName, models := range sortedModel {
 		collection := db.Database.C(collectionName)
 		errTmp := collection.Insert(models...)
 		if errTmp != nil {
-			err = append(err, errTmp)
+			err.Errs = append(err.Errs, errTmp)
 		}
 	}
-	if len(err) == 0 {
-		err = nil
+	if len(err.Errs) > 0 {
+		return err
 	}
-	return err
+	return nil
 }
 
-func (db *MongoDatabaseSession) IsExist(result interface{}) bool {
-	newResult := tools.Zero(result)
-	queryMap, _ := tools.Map(result)
-	if len(queryMap) == 0 {
-		return false
-	}
-	db.GetOneModel(queryMap, &newResult)
-	return tools.NotEmpty(newResult)
-}
+// func (db *MongoDatabaseSession) IsExist(result interface{}) bool {
+// 	newResult := tools.Zero(result)
+// 	queryMap, _ := tools.Map(result)
+
+// 	if len(queryMap) == 0 {
+// 		return false
+// 	}
+// 	db.GetOneModel(queryMap, &newResult)
+
+// 	return tools.NotEmpty(newResult)
+// }

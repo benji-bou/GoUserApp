@@ -3,7 +3,7 @@ package security
 import (
 	"encoding/base64"
 	"errors"
-	"net/http"
+	"github.com/labstack/echo"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -14,8 +14,8 @@ type BasicAuthentication struct {
 }
 
 //GetCredentials log user
-func (a BasicAuthentication) GetCredentials(r *http.Request) (string, string, error) {
-	s := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
+func (a BasicAuthentication) GetCredentials(c echo.Context) (string, string, error) {
+	s := strings.SplitN(c.Request().Header().Get("Authorization"), " ", 2)
 
 	if len(s) != 2 || s[0] != "Basic" {
 		return "", "", errors.New("Not Basic authentication challenge")

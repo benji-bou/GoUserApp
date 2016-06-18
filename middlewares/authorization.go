@@ -1,15 +1,20 @@
 package middlewares
 
 import (
-	"goappuser/user"
+	"errors"
+	"github.com/labstack/echo"
+	"goappuser/models"
 	"log"
 	"net/http"
-
-	"github.com/gorilla/context"
-	"github.com/gorilla/sessions"
 )
 
-func NewAuthorizationMiddleware(roles ...string) MiddlewareHandler {
+var (
+	ErrUserNotAuthorized = errors.New("User not authorize")
+	ErrUserRolesNotMatch = errors.New("User doesn't have corrects roles")
+	ErrNoSessionUser     = errors.New("No user session found")
+)
+
+func NewAuthorizationMiddleware(roles ...string) *AuthorizationMiddlewareHandler {
 	return &AuthorizationMiddlewareHandler{roles: roles}
 }
 
@@ -17,23 +22,26 @@ type AuthorizationMiddlewareHandler struct {
 	roles []string
 }
 
-func (a *AuthorizationMiddlewareHandler) Middle(w http.ResponseWriter, r *http.Request, next func()) {
-	log.Println("auth with roles accepted", a.roles)
-	session := context.Get(r, "Session").(*sessions.Session)
-	log.Println("session found in context ", session)
-	if usr, isOk := session.Values["user"].(*user.User); isOk {
-		log.Println("user session role", usr.Role)
+func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		log.Println("auth with roles accepted", a.roles)
+		session, isOk := c.Get("Session").(models.Session)
+		if !isOk {
+			log.Println("In Authorization Session not found")
+			c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserNotAuthorized.Error(), Code: 0})
+			return ErrUserNotAuthorized
+		}
+		log.Println("session found in context ", session)
+		usr := session.User
+		log.Println("user session role", usr.Role())
 		for _, elem := range a.roles {
-			if elem == usr.Role {
+			if elem == usr.Role() {
 				log.Println("auth ok", usr.Email)
-				next()
-				return
+				next(c)
+				return nil
 			}
 		}
-		log.Println("User not authorize", usr)
-	} else {
-		log.Println("User not found in session", usr)
-
+		c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserRolesNotMatch.Error(), Code: 0})
+		return ErrUserRolesNotMatch
 	}
-	http.Error(w, "Vous n'êtes pas authentifié", http.StatusForbidden)
 }
