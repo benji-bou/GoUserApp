@@ -154,7 +154,10 @@ func (m *DBUserManage) GetByEmail(email string, user User) error {
 //Authenticate log the user
 func (m *DBUserManage) Authenticate(c *echo.Context, user User) (User, error) {
 	if session, isOk := (*c).Get("Session").(Session); isOk {
-		return session.User, ErrAlreadyAuth
+		if err := m.GetByEmail(session.User.GetEmail(), user); err != nil {
+			return nil, ErrUserNotFound
+		}
+		return user, ErrAlreadyAuth
 	}
 	username, password, err := m.auth.GetCredentials(*c)
 	if err != nil {

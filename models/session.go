@@ -17,6 +17,9 @@ var (
 	ErrSessionManagerUnvailable = errors.New("The session manager hasn't beenn initialised with NewSessionManager")
 )
 
+type getUserFn	func() User
+ 
+
 type SessionManager struct {
 	isSecure bool
 	duration time.Time
@@ -29,8 +32,9 @@ func NewSessionManager(isSecure bool, duration time.Time, db dbm.DatabaseQuerier
 }
 
 func (sm *SessionManager) CreateSession(user User) (Session, *echo.Cookie, error) {
-	if session, err := NewSession(user); err != nil {
+	if session, err := NewSession(); err != nil {
 		log.Println("error session: ", err)
+		session.User = *(user.(*UserDefault))
 		return session, nil, err
 	} else {
 		log.Println("session insert")
@@ -43,7 +47,7 @@ func (sm *SessionManager) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		sessionId, err := readSessionCookie(c)
 		if err != nil {
-			log.Println("session err : ", err)
+			log.Println("read cookie err : ", err)
 			next(c)
 			return err
 		}
@@ -61,17 +65,16 @@ func (sm *SessionManager) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 
 type Session struct {
 	Id     bson.ObjectId          `bson:"_id" json:"id"`
-	User   User                   `bson:"user" json:"user"`
+	User   UserDefault          `bson:"user" json:"user"`
 	Values map[string]interface{} `bson:"values" json:"values"`
 }
 
-func NewSession(user User) (Session, error) {
+func NewSession() (Session, error) {
 	if manager == nil {
 		return Session{}, ErrSessionManagerUnvailable
 	}
 	s := Session{
 		Id:     bson.NewObjectId(),
-		User:   user,
 		Values: make(map[string]interface{})}
 	return s, nil
 }
