@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo"
 	"goappuser/database"
 	"goappuser/security"
+	"gopkg.in/mgo.v2/bson"
 
 	"gopkg.in/mgo.v2"
 	"gotools"
@@ -31,6 +32,8 @@ type UserManager interface {
 	ResetPassword(User, string) bool
 	//GetByEmail retrieve a user using its email
 	GetByEmail(email string, user User) error
+	//
+	GetById(id string, user User) error
 	//Authenticate
 	Authenticate(c *echo.Context, user User) (User, error)
 }
@@ -61,7 +64,7 @@ type UserDefault struct {
 }
 
 type UserDefaultExtended struct {
-	UserDefault       `bson:"credentials,inline" json:"credentials,inline"`
+	UserDefault        `bson:"credentials,inline" json:"credentials,inline"`
 	Name               string    `bson:"name" json:"name"`
 	Surname            string    `bson:"surname" json:"surname"`
 	Pseudo             string    `bson:"pseudo" json:"pseudo"`
@@ -146,6 +149,17 @@ func (m *DBUserManage) ResetPassword(user User, newPassword string) bool {
 //GetByEmail retrieve a user using its email
 func (m *DBUserManage) GetByEmail(email string, user User) error {
 	if err := m.db.GetOneModel(dbm.M{"email": email}, user); err != nil {
+		return err
+	}
+	return nil
+}
+
+//GetById retrieve a user using its id
+func (m *DBUserManage) GetById(id string, user User) error {
+	if bson.IsObjectIdHex(id) == false {
+		return ErrUserNotFound
+	}
+	if err := m.db.GetOneModel(dbm.M{"_id": bson.IsObjectIdHex(id)}, user); err != nil {
 		return err
 	}
 	return nil
