@@ -58,9 +58,10 @@ type User interface {
 //User Represent a basic user
 
 type UserDefault struct {
-	Password []byte `bson:"password" json:"-"`
-	Email    string `bson:"email" json:"email"`
-	Role     string `bson:"role" json:"-"`
+	Id       bson.ObjectId `bson:"_id" json:"_id"`
+	Password []byte        `bson:"password" json:"-"`
+	Email    string        `bson:"email" json:"email"`
+	Role     string        `bson:"role" json:"-"`
 }
 
 type UserDefaultExtended struct {
