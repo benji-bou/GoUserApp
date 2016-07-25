@@ -15,17 +15,23 @@ import (
 )
 
 var (
+	ErrInvalidMail        = errors.New("invalid mail provided")
+	ErrInvalidPassword    = errors.New("invalid password provided")
 	ErrAlreadyRegister    = errors.New("mail already register")
 	ErrAlreadyAuth        = errors.New("Already authenticate")
 	ErrUserNotFound       = errors.New("User not found")
 	ErrInvalidCredentials = errors.New("Invalid credentials")
 	ErrNoSession          = errors.New("No session found")
+	ErrUserAlreadyFriend  = errors.New("Users is already in the friend list")
+	ErrUserFriendNotFound = errors.New("Users not found in the friend list")
 )
 
 //Manager interface to implements all feature to manage user
 type UserManager interface {
 	//Register register as a new user
 	Register(User) error
+
+	Update(User) error
 	//IsExist check existence of the user
 	IsExist(User) bool
 	//ResetPassword user with specifics credentials
@@ -36,10 +42,15 @@ type UserManager interface {
 	GetById(id string, user User) error
 	//Authenticate
 	Authenticate(c *echo.Context, user User) (User, error)
+	//Add Friend
+	AddFriend(user, friend User) error
+	//User List
+	UserList(login string, user User) (interface{}, error)
 }
 
 //NewUser create a basic user with the mandatory parameters for each users
 func NewUserDefaultExtended(email, password string) *UserDefaultExtended {
+	log.Println("New Password", password)
 	return &UserDefaultExtended{UserDefault: UserDefault{Email: email, Password: []byte(password), Role: "user"}}
 }
 
@@ -47,12 +58,17 @@ func NewUserDefaultExtended(email, password string) *UserDefaultExtended {
 
 //TODO: Change User to an interface
 type User interface {
+	SetId(id bson.ObjectId)
+	GetId() bson.ObjectId
 	GetEmail() string
 	SetEmail(email string)
 	GetPassword() []byte
 	SetPassword(pass []byte)
 	GetRole() string
 	SetRole(role string)
+	GetFriends() []User
+	AddFriend(user User) error
+	RemoveFriend(user User) error
 }
 
 //User Represent a basic user
@@ -62,6 +78,7 @@ type UserDefault struct {
 	Password []byte        `bson:"password" json:"-"`
 	Email    string        `bson:"email" json:"email"`
 	Role     string        `bson:"role" json:"-"`
+	Friends  []User        `bson:"friends" json:"friends"`
 }
 
 type UserDefaultExtended struct {
@@ -72,6 +89,14 @@ type UserDefaultExtended struct {
 	DateCreate         time.Time `bson:"created" json:"created"`
 	DateLastConnection time.Time `bson:"lastconnection" json:"lastconnection,omitempty"`
 	BirthDate          time.Time `bson:"birthdate" json:"birthdate,omitempty"`
+}
+
+func (u *UserDefault) SetId(id bson.ObjectId) {
+	u.Id = id
+}
+
+func (u *UserDefault) GetId() bson.ObjectId {
+	return u.Id
 }
 
 func (u *UserDefault) GetEmail() string {
@@ -98,6 +123,30 @@ func (u *UserDefault) SetRole(role string) {
 	u.Role = role
 }
 
+func (u *UserDefault) GetFriends() []User {
+	return u.Friends
+}
+
+func (u *UserDefault) AddFriend(user User) error {
+	for _, fr := range u.Friends {
+		if fr.GetId() == user.GetId() {
+			return ErrUserAlreadyFriend
+		}
+	}
+	u.Friends = append(u.Friends, user)
+	return nil
+}
+
+func (u *UserDefault) RemoveFriend(user User) error {
+	for index, fr := range u.Friends {
+		if fr.GetId() == user.GetId() {
+			u.Friends = append(u.Friends[:index], u.Friends[index+1:]...)
+			return nil
+		}
+	}
+	return ErrUserFriendNotFound
+}
+
 //NewDBUserManage create a db manager user
 func NewDBUserManage(db dbm.DatabaseQuerier, auth security.AuthenticationProcesser, sm *SessionManager) *DBUserManage {
 	return &DBUserManage{db: db, auth: auth, sessionManager: sm}
@@ -112,6 +161,15 @@ type DBUserManage struct {
 
 //Register register as a new user
 func (m *DBUserManage) Register(user User) error {
+	if user.GetEmail() == "" {
+		return ErrInvalidMail
+	}
+
+	if user.GetPassword() == nil {
+		log.Println(string(user.GetPassword()))
+		return ErrInvalidPassword
+	}
+
 	if m.IsExist(user) {
 		return ErrAlreadyRegister
 	}
@@ -120,6 +178,7 @@ func (m *DBUserManage) Register(user User) error {
 	if errHash != nil {
 		return errHash
 	}
+	user.SetId(bson.NewObjectId())
 	user.SetPassword(pass)
 	log.Println("insert user", user)
 	if errInsert := m.db.InsertModel(user); errInsert != nil {
@@ -128,6 +187,10 @@ func (m *DBUserManage) Register(user User) error {
 	}
 	log.Println("insert OK")
 	return nil
+}
+
+func (m *DBUserManage) Update(user User) error {
+	return m.db.UpdateModelId(user.GetId(), user)
 }
 
 //IsExist check existence of the user
@@ -175,22 +238,37 @@ func (m *DBUserManage) Authenticate(c *echo.Context, user User) (User, error) {
 		return user, ErrAlreadyAuth
 	}
 	username, password, err := m.auth.GetCredentials(*c)
+	log.Println("Authenticate", username, password)
 	if err != nil {
 		return nil, errors.New(fmt.Sprint("Failed to retrieve credentials from request: ", err))
 	}
-
 	err = m.GetByEmail(username, user)
 	if err != nil {
 		return nil, ErrUserNotFound
 	}
 	if ok := m.auth.Compare([]byte(password), user.GetPassword()); ok == true {
-
 		if _, cookie, err := m.sessionManager.CreateSession(user); err == nil {
+			log.Println("settingCookie")
 			(*c).SetCookie(cookie)
+		} else {
+			log.Println(err)
+			return user, err
 		}
 		return user, nil
 	}
+	log.Println(ErrInvalidCredentials.Error(), username, password)
 	return nil, ErrInvalidCredentials
+}
+
+func (m *DBUserManage) AddFriend(user, friend User) error {
+	return user.AddFriend(friend)
+}
+
+func (m *DBUserManage) UserList(login string, user User) (interface{}, error) {
+	email := fmt.Sprintf(".*%s.*", login)
+
+	//dbm.M{"$regex":
+	return m.db.GetModels(dbm.M{"email": bson.RegEx{email, ""}}, &user, 20, 0)
 }
 
 func (m *DBUserManage) cleanSession(c echo.Context) error {

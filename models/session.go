@@ -17,8 +17,7 @@ var (
 	ErrSessionManagerUnvailable = errors.New("The session manager hasn't beenn initialised with NewSessionManager")
 )
 
-type getUserFn	func() User
- 
+type getUserFn func() User
 
 type SessionManager struct {
 	isSecure bool
@@ -34,10 +33,10 @@ func NewSessionManager(isSecure bool, duration time.Time, db dbm.DatabaseQuerier
 func (sm *SessionManager) CreateSession(user User) (Session, *echo.Cookie, error) {
 	if session, err := NewSession(); err != nil {
 		log.Println("error session: ", err)
-		session.User = *(user.(*UserDefault))
 		return session, nil, err
 	} else {
 		log.Println("session insert")
+		session.User = UserDefault{Id: user.GetId(), Email: user.GetEmail(), Password: user.GetPassword(), Role: user.GetRole()}
 		errs := sm.db.InsertModel(session)
 		return session, writeSessionCookie(session), errs
 	}
@@ -65,7 +64,7 @@ func (sm *SessionManager) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 
 type Session struct {
 	Id     bson.ObjectId          `bson:"_id" json:"id"`
-	User   UserDefault          `bson:"user" json:"user"`
+	User   UserDefault            `bson:"user" json:"user"`
 	Values map[string]interface{} `bson:"values" json:"values"`
 }
 
@@ -81,6 +80,7 @@ func NewSession() (Session, error) {
 
 func writeSessionCookie(s Session) *echo.Cookie {
 	cookie := new(echo.Cookie)
+	cookie.SetSecure(true)
 	cookie.SetName("sessionId")
 	cookie.SetValue(s.Id.Hex())
 	cookie.SetExpires(manager.duration)
