@@ -80,7 +80,8 @@ func NewSession() (Session, error) {
 
 func writeSessionCookie(s Session) *echo.Cookie {
 	cookie := new(echo.Cookie)
-	cookie.SetSecure(true)
+	//	cookie.SetSecure(true)
+	cookie.SetHTTPOnly(true)
 	cookie.SetName("sessionId")
 	cookie.SetValue(s.Id.Hex())
 	cookie.SetExpires(manager.duration)

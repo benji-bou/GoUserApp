@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -17,4 +18,13 @@ type RequestError struct {
 //Error return well format error string
 func (e RequestError) Error() string {
 	return fmt.Sprint("Error", e.Code, e.Title, e.Description)
+}
+
+func (e RequestError) MarshalJSON() ([]byte, error) {
+	type Alias RequestError
+	return json.Marshal(&struct {
+		Error Alias
+	}{
+		Error: (Alias)(e),
+	})
 }

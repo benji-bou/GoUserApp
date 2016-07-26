@@ -2,7 +2,7 @@ package dbm
 
 import (
 	"gotools"
-	"log"
+
 	// "log"
 	"math/rand"
 
@@ -103,7 +103,6 @@ func (db *MongoDatabaseSession) GetRandomOneModel(model interface{}) error {
 func (db *MongoDatabaseSession) GetModels(mongoQuery M, resultInterface interface{}, limit int, skip int) (interface{}, error) {
 
 	collectionName := tools.GetInnerTypeName(resultInterface)
-	log.Println(collectionName)
 	collection := db.Database.C(collectionName)
 	result := tools.CreatePtrToSliceFromInterface(resultInterface)
 	var err error = nil

@@ -22,6 +22,7 @@ var (
 	ErrUserNotFound       = errors.New("User not found")
 	ErrInvalidCredentials = errors.New("Invalid credentials")
 	ErrNoSession          = errors.New("No session found")
+	ErrUserFriendInvalid  = errors.New("Users is not a valid friend")
 	ErrUserAlreadyFriend  = errors.New("Users is already in the friend list")
 	ErrUserFriendNotFound = errors.New("Users not found in the friend list")
 )
@@ -41,7 +42,7 @@ type UserManager interface {
 	//
 	GetById(id string, user User) error
 	//Authenticate
-	Authenticate(c *echo.Context, user User) (User, error)
+	Authenticate(c echo.Context, user User) (User, error)
 	//Add Friend
 	AddFriend(user, friend User) error
 	//User List
@@ -51,7 +52,12 @@ type UserManager interface {
 //NewUser create a basic user with the mandatory parameters for each users
 func NewUserDefaultExtended(email, password string) *UserDefaultExtended {
 	log.Println("New Password", password)
-	return &UserDefaultExtended{UserDefault: UserDefault{Email: email, Password: []byte(password), Role: "user"}}
+	return &UserDefaultExtended{UserDefault: UserDefault{Email: email, Password: []byte(password), Role: "user", Friends: make([]UserDefault, 0, 0)}}
+}
+
+func NewUserDefault(user User) *UserDefault {
+
+	return &UserDefault{Id: user.GetId(), Email: user.GetEmail(), Password: user.GetPassword(), Role: user.GetRole()}
 }
 
 //User Represent a basic user
@@ -74,11 +80,11 @@ type User interface {
 //User Represent a basic user
 
 type UserDefault struct {
-	Id       bson.ObjectId `bson:"_id" json:"_id"`
+	Id       bson.ObjectId `bson:"_id" json:"id"`
 	Password []byte        `bson:"password" json:"-"`
 	Email    string        `bson:"email" json:"email"`
 	Role     string        `bson:"role" json:"-"`
-	Friends  []User        `bson:"friends" json:"friends"`
+	Friends  []UserDefault `bson:"friends" json:"friends"`
 }
 
 type UserDefaultExtended struct {
@@ -124,16 +130,24 @@ func (u *UserDefault) SetRole(role string) {
 }
 
 func (u *UserDefault) GetFriends() []User {
-	return u.Friends
+	count := len(u.Friends)
+	res := make([]User, count, count)
+	for i, s := range u.Friends {
+		res[i] = &s
+	}
+	return res
 }
 
 func (u *UserDefault) AddFriend(user User) error {
+	if u.GetId() == user.GetId() {
+		return ErrUserFriendInvalid
+	}
 	for _, fr := range u.Friends {
 		if fr.GetId() == user.GetId() {
 			return ErrUserAlreadyFriend
 		}
 	}
-	u.Friends = append(u.Friends, user)
+	u.Friends = append(u.Friends, *NewUserDefault(user))
 	return nil
 }
 
@@ -190,6 +204,7 @@ func (m *DBUserManage) Register(user User) error {
 }
 
 func (m *DBUserManage) Update(user User) error {
+	log.Println(user.GetFriends()[0].GetId())
 	return m.db.UpdateModelId(user.GetId(), user)
 }
 
@@ -223,22 +238,21 @@ func (m *DBUserManage) GetById(id string, user User) error {
 	if bson.IsObjectIdHex(id) == false {
 		return ErrUserNotFound
 	}
-	if err := m.db.GetOneModel(dbm.M{"_id": bson.IsObjectIdHex(id)}, user); err != nil {
+	if err := m.db.GetOneModel(dbm.M{"_id": bson.ObjectIdHex(id)}, user); err != nil {
 		return err
 	}
 	return nil
 }
 
 //Authenticate log the user
-func (m *DBUserManage) Authenticate(c *echo.Context, user User) (User, error) {
-	if session, isOk := (*c).Get("Session").(Session); isOk {
+func (m *DBUserManage) Authenticate(c echo.Context, user User) (User, error) {
+	if session, isOk := (c).Get("Session").(Session); isOk {
 		if err := m.GetByEmail(session.User.GetEmail(), user); err != nil {
 			return nil, ErrUserNotFound
 		}
 		return user, ErrAlreadyAuth
 	}
-	username, password, err := m.auth.GetCredentials(*c)
-	log.Println("Authenticate", username, password)
+	username, password, err := m.auth.GetCredentials(c)
 	if err != nil {
 		return nil, errors.New(fmt.Sprint("Failed to retrieve credentials from request: ", err))
 	}
@@ -249,7 +263,7 @@ func (m *DBUserManage) Authenticate(c *echo.Context, user User) (User, error) {
 	if ok := m.auth.Compare([]byte(password), user.GetPassword()); ok == true {
 		if _, cookie, err := m.sessionManager.CreateSession(user); err == nil {
 			log.Println("settingCookie")
-			(*c).SetCookie(cookie)
+			(c).SetCookie(cookie)
 		} else {
 			log.Println(err)
 			return user, err
@@ -261,7 +275,12 @@ func (m *DBUserManage) Authenticate(c *echo.Context, user User) (User, error) {
 }
 
 func (m *DBUserManage) AddFriend(user, friend User) error {
-	return user.AddFriend(friend)
+	if err := user.AddFriend(friend); err != nil {
+		log.Println("arrFriend disk error")
+		return err
+	} else {
+		return m.Update(user)
+	}
 }
 
 func (m *DBUserManage) UserList(login string, user User) (interface{}, error) {
