@@ -27,6 +27,7 @@ type DatabaseQuerier interface {
 	GetOneModel(mongoQuery M, result interface{}) error
 	InsertModel(model ...interface{}) error
 	UpdateModelId(Id interface{}, model interface{}) error
+	RemoveModel(mongoQuery M, model interface{}) error
 	//TODO: Create RemoveModel
 	//TODO: make isExist work
 	// IsExist(result interface{}) bool
@@ -154,6 +155,13 @@ func (db *MongoDatabaseSession) UpdateModelId(id interface{}, model interface{})
 	collectionName := tools.GetInnerTypeName(model)
 	collection := db.Database.C(collectionName)
 	_, err := collection.UpsertId(id, model)
+	return err
+}
+
+func (db *MongoDatabaseSession) RemoveModel(mongoQuery M, model interface{}) error {
+	collectionName := tools.GetInnerTypeName(model)
+	collection := db.Database.C(collectionName)
+	_, err := collection.RemoveAll(mongoQuery)
 	return err
 }
 

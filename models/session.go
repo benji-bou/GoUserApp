@@ -17,8 +17,6 @@ var (
 	ErrSessionManagerUnvailable = errors.New("The session manager hasn't beenn initialised with NewSessionManager")
 )
 
-type getUserFn func() User
-
 type SessionManager struct {
 	isSecure bool
 	duration time.Time
@@ -40,6 +38,10 @@ func (sm *SessionManager) CreateSession(user User) (Session, *echo.Cookie, error
 		errs := sm.db.InsertModel(session)
 		return session, writeSessionCookie(session), errs
 	}
+}
+
+func (sm *SessionManager) RemoveSession(user User) error {
+	return sm.db.RemoveModel(dbm.M{"user._id": user.GetId()}, &Session{})
 }
 
 func (sm *SessionManager) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
@@ -81,7 +83,7 @@ func NewSession() (Session, error) {
 func writeSessionCookie(s Session) *echo.Cookie {
 	cookie := new(echo.Cookie)
 	//	cookie.SetSecure(true)
-	cookie.SetHTTPOnly(true)
+	// cookie.SetHTTPOnly(true)
 	cookie.SetName("sessionId")
 	cookie.SetValue(s.Id.Hex())
 	cookie.SetExpires(manager.duration)

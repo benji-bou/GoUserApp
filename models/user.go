@@ -43,6 +43,8 @@ type UserManager interface {
 	GetById(id string, user User) error
 	//Authenticate
 	Authenticate(c echo.Context, user User) (User, error)
+	//Logout the current user
+	Logout(user User) error
 	//Add Friend
 	AddFriend(user, friend User) error
 	//User List
@@ -272,6 +274,10 @@ func (m *DBUserManage) Authenticate(c echo.Context, user User) (User, error) {
 	}
 	log.Println(ErrInvalidCredentials.Error(), username, password)
 	return nil, ErrInvalidCredentials
+}
+
+func (m *DBUserManage) Logout(user User) error {
+	return m.sessionManager.RemoveSession(user)
 }
 
 func (m *DBUserManage) AddFriend(user, friend User) error {
