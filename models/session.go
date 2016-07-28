@@ -30,10 +30,9 @@ func NewSessionManager(isSecure bool, duration time.Time, db dbm.DatabaseQuerier
 
 func (sm *SessionManager) CreateSession(user User) (Session, *echo.Cookie, error) {
 	if session, err := NewSession(); err != nil {
-		log.Println("error session: ", err)
+		log.Println("Session - CreateSession -", err)
 		return session, nil, err
 	} else {
-		log.Println("session insert")
 		session.User = UserDefault{Id: user.GetId(), Email: user.GetEmail(), Password: user.GetPassword(), Role: user.GetRole()}
 		errs := sm.db.InsertModel(session)
 		return session, writeSessionCookie(session), errs
@@ -48,13 +47,11 @@ func (sm *SessionManager) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		sessionId, err := readSessionCookie(c)
 		if err != nil {
-			log.Println("read cookie err : ", err)
 			next(c)
-			return err
+			return nil
 		}
 		s := &Session{}
 		if errDB := sm.db.GetOneModel(dbm.M{"_id": sessionId}, s); errDB != nil {
-			log.Println("session err : ", errDB)
 			next(c)
 			return errDB
 		}

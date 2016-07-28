@@ -264,7 +264,6 @@ func (m *DBUserManage) Authenticate(c echo.Context, user User) (User, error) {
 	}
 	if ok := m.auth.Compare([]byte(password), user.GetPassword()); ok == true {
 		if _, cookie, err := m.sessionManager.CreateSession(user); err == nil {
-			log.Println("settingCookie")
 			(c).SetCookie(cookie)
 		} else {
 			log.Println(err)

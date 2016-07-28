@@ -1,6 +1,7 @@
 package dbm
 
 import (
+	"errors"
 	"gotools"
 
 	// "log"
@@ -8,6 +9,11 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+)
+
+var (
+	ErrNotFound = errors.New("not found")
+	ErrCursor   = errors.New("invalid cursor")
 )
 
 type DBError struct {
@@ -164,15 +170,3 @@ func (db *MongoDatabaseSession) RemoveModel(mongoQuery M, model interface{}) err
 	_, err := collection.RemoveAll(mongoQuery)
 	return err
 }
-
-// func (db *MongoDatabaseSession) IsExist(result interface{}) bool {
-// 	newResult := tools.Zero(result)
-// 	queryMap, _ := tools.Map(result)
-
-// 	if len(queryMap) == 0 {
-// 		return false
-// 	}
-// 	db.GetOneModel(queryMap, &newResult)
-
-// 	return tools.NotEmpty(newResult)
-// }
