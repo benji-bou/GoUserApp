@@ -37,8 +37,8 @@ type UserManager interface {
 	IsExist(User) bool
 	//ResetPassword user with specifics credentials
 	ResetPassword(User, string) bool
-	//GetByEmail retrieve a user using its email
-	GetByEmail(email string, user User) error
+	//GetByUniqueLogin retrieve a user using its UniqueLogin
+	GetByUniqueLogin(UniqueLogin string, user User) error
 	//
 	GetById(id string, user User) error
 	//Authenticate
@@ -52,14 +52,14 @@ type UserManager interface {
 }
 
 //NewUser create a basic user with the mandatory parameters for each users
-func NewUserDefaultExtended(email, password string) *UserDefaultExtended {
+func NewUserDefaultExtended(UniqueLogin, password string) *UserDefaultExtended {
 	log.Println("New Password", password)
-	return &UserDefaultExtended{UserDefault: UserDefault{Email: email, Password: []byte(password), Role: "user", Friends: make([]UserDefault, 0, 0)}}
+	return &UserDefaultExtended{UserDefault: UserDefault{UniqueLogin: UniqueLogin, Password: []byte(password), Role: "user", Friends: make([]UserDefault, 0, 0)}}
 }
 
 func NewUserDefault(user User) *UserDefault {
 
-	return &UserDefault{Id: user.GetId(), Email: user.GetEmail(), Password: user.GetPassword(), Role: user.GetRole()}
+	return &UserDefault{Id: user.GetId(), UniqueLogin: user.GetUniqueLogin(), Password: user.GetPassword(), Role: user.GetRole()}
 }
 
 //User Represent a basic user
@@ -68,8 +68,8 @@ func NewUserDefault(user User) *UserDefault {
 type User interface {
 	SetId(id bson.ObjectId)
 	GetId() bson.ObjectId
-	GetEmail() string
-	SetEmail(email string)
+	GetUniqueLogin() string
+	SetUniqueLogin(UniqueLogin string)
 	GetPassword() []byte
 	SetPassword(pass []byte)
 	GetRole() string
@@ -82,15 +82,16 @@ type User interface {
 //User Represent a basic user
 
 type UserDefault struct {
-	Id       bson.ObjectId `bson:"_id" json:"id"`
-	Password []byte        `bson:"password" json:"-"`
-	Email    string        `bson:"email" json:"email"`
-	Role     string        `bson:"role" json:"-"`
-	Friends  []UserDefault `bson:"friends" json:"friends"`
+	Id          bson.ObjectId `bson:"_id" json:"id"`
+	Password    []byte        `bson:"password" json:"-"`
+	UniqueLogin string        `bson:"uniqueLogin" json:"uniqueLogin"`
+	Role        string        `bson:"role" json:"-"`
+	Friends     []UserDefault `bson:"friends" json:"friends"`
 }
 
 type UserDefaultExtended struct {
 	UserDefault        `bson:"credentials,inline" json:"credentials,inline"`
+	Email              string    `bson:"email" json:"email"`
 	Name               string    `bson:"name" json:"name"`
 	Surname            string    `bson:"surname" json:"surname"`
 	Pseudo             string    `bson:"pseudo" json:"pseudo"`
@@ -107,12 +108,12 @@ func (u *UserDefault) GetId() bson.ObjectId {
 	return u.Id
 }
 
-func (u *UserDefault) GetEmail() string {
-	return u.Email
+func (u *UserDefault) GetUniqueLogin() string {
+	return u.UniqueLogin
 }
 
-func (u *UserDefault) SetEmail(email string) {
-	u.Email = email
+func (u *UserDefault) SetUniqueLogin(UniqueLogin string) {
+	u.UniqueLogin = UniqueLogin
 
 }
 func (u *UserDefault) GetPassword() []byte {
@@ -177,7 +178,7 @@ type DBUserManage struct {
 
 //Register register as a new user
 func (m *DBUserManage) Register(user User) error {
-	if user.GetEmail() == "" {
+	if user.GetUniqueLogin() == "" {
 		return ErrInvalidMail
 	}
 
@@ -198,7 +199,7 @@ func (m *DBUserManage) Register(user User) error {
 	user.SetPassword(pass)
 	log.Println("insert user", user)
 	if errInsert := m.db.InsertModel(user); errInsert != nil {
-		log.Println("error insert", errInsert, " user: ", user.GetEmail())
+		log.Println("error insert", errInsert, " user: ", user.GetUniqueLogin())
 		return errInsert
 	}
 	log.Println("insert OK")
@@ -213,7 +214,7 @@ func (m *DBUserManage) Update(user User) error {
 //IsExist check existence of the user
 func (m *DBUserManage) IsExist(user User) bool {
 	u := &UserDefault{}
-	if err := m.GetByEmail(user.GetEmail(), u); err == nil {
+	if err := m.GetByUniqueLogin(user.GetUniqueLogin(), u); err == nil {
 		log.Println("IsExist user ", u)
 		return tools.NotEmpty(u)
 	} else if err == mgo.ErrNotFound {
@@ -227,9 +228,9 @@ func (m *DBUserManage) ResetPassword(user User, newPassword string) bool {
 	return false
 }
 
-//GetByEmail retrieve a user using its email
-func (m *DBUserManage) GetByEmail(email string, user User) error {
-	if err := m.db.GetOneModel(dbm.M{"email": email}, user); err != nil {
+//GetByUniqueLogin retrieve a user using its UniqueLogin
+func (m *DBUserManage) GetByUniqueLogin(UniqueLogin string, user User) error {
+	if err := m.db.GetOneModel(dbm.M{"UniqueLogin": UniqueLogin}, user); err != nil {
 		return err
 	}
 	return nil
@@ -249,7 +250,7 @@ func (m *DBUserManage) GetById(id string, user User) error {
 //Authenticate log the user
 func (m *DBUserManage) Authenticate(c echo.Context, user User) (User, error) {
 	if session, isOk := (c).Get("Session").(Session); isOk {
-		if err := m.GetByEmail(session.User.GetEmail(), user); err != nil {
+		if err := m.GetByUniqueLogin(session.User.GetUniqueLogin(), user); err != nil {
 			return nil, ErrUserNotFound
 		}
 		return user, ErrAlreadyAuth
@@ -258,7 +259,7 @@ func (m *DBUserManage) Authenticate(c echo.Context, user User) (User, error) {
 	if err != nil {
 		return nil, errors.New(fmt.Sprint("Failed to retrieve credentials from request: ", err))
 	}
-	err = m.GetByEmail(username, user)
+	err = m.GetByUniqueLogin(username, user)
 	if err != nil {
 		return nil, ErrUserNotFound
 	}
@@ -289,10 +290,10 @@ func (m *DBUserManage) AddFriend(user, friend User) error {
 }
 
 func (m *DBUserManage) UserList(login string, user User) (interface{}, error) {
-	email := fmt.Sprintf(".*%s.*", login)
+	UniqueLogin := fmt.Sprintf(".*%s.*", login)
 
 	//dbm.M{"$regex":
-	return m.db.GetModels(dbm.M{"email": bson.RegEx{email, ""}}, &user, 20, 0)
+	return m.db.GetModels(dbm.M{"UniqueLogin": bson.RegEx{UniqueLogin, ""}}, &user, 20, 0)
 }
 
 func (m *DBUserManage) cleanSession(c echo.Context) error {

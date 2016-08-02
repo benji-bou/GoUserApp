@@ -33,7 +33,7 @@ func (sm *SessionManager) CreateSession(user User) (Session, *echo.Cookie, error
 		log.Println("Session - CreateSession -", err)
 		return session, nil, err
 	} else {
-		session.User = UserDefault{Id: user.GetId(), Email: user.GetEmail(), Password: user.GetPassword(), Role: user.GetRole()}
+		session.User = UserDefault{Id: user.GetId(), UniqueLogin: user.GetUniqueLogin(), Password: user.GetPassword(), Role: user.GetRole()}
 		errs := sm.db.InsertModel(session)
 		return session, writeSessionCookie(session), errs
 	}

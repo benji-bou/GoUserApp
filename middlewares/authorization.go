@@ -36,7 +36,7 @@ func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.Han
 		// log.Println("user session role", usr.GetRole())
 		for _, elem := range a.roles {
 			if elem == usr.GetRole() {
-				// log.Println("auth ok", usr.GetEmail())
+				// log.Println("auth ok", usr.GetUniqueLogin())
 				next(c)
 				return nil
 			}
