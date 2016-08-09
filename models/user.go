@@ -207,7 +207,6 @@ func (m *DBUserManage) Register(user User) error {
 }
 
 func (m *DBUserManage) Update(user User) error {
-	log.Println(user.GetFriends()[0].GetId())
 	return m.db.UpdateModelId(user.GetId(), user)
 }
 
@@ -230,7 +229,7 @@ func (m *DBUserManage) ResetPassword(user User, newPassword string) bool {
 
 //GetByUniqueLogin retrieve a user using its UniqueLogin
 func (m *DBUserManage) GetByUniqueLogin(UniqueLogin string, user User) error {
-	if err := m.db.GetOneModel(dbm.M{"UniqueLogin": UniqueLogin}, user); err != nil {
+	if err := m.db.GetOneModel(dbm.M{"uniqueLogin": UniqueLogin}, user); err != nil {
 		return err
 	}
 	return nil
@@ -267,7 +266,6 @@ func (m *DBUserManage) Authenticate(c echo.Context, user User) (User, error) {
 		if _, cookie, err := m.sessionManager.CreateSession(user); err == nil {
 			(c).SetCookie(cookie)
 		} else {
-			log.Println(err)
 			return user, err
 		}
 		return user, nil
