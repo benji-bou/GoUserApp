@@ -10,16 +10,17 @@ import (
 
 var (
 	ErrUserNotAuthorized = errors.New("User not authorize")
+	ErrUserHasNoRoles    = errors.New("User doesn't have any roles set")
 	ErrUserRolesNotMatch = errors.New("User doesn't have corrects roles")
 	ErrNoSessionUser     = errors.New("No user session found")
 )
 
-func NewAuthorizationMiddleware(roles ...string) *AuthorizationMiddlewareHandler {
+func NewAuthorizationMiddleware(roles models.AuthorizationLevel) *AuthorizationMiddlewareHandler {
 	return &AuthorizationMiddlewareHandler{roles: roles}
 }
 
 type AuthorizationMiddlewareHandler struct {
-	roles []string
+	roles models.AuthorizationLevel
 }
 
 func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.HandlerFunc {
@@ -27,19 +28,19 @@ func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.Han
 		// log.Println("auth with roles accepted", a.roles)
 		session, isOk := c.Get("Session").(models.Session)
 		if !isOk {
-			log.Println("In Authorization Session not found")
+			log.Println("In Authorization Session has not been found")
 			c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserNotAuthorized.Error(), Code: 0})
 			return ErrUserNotAuthorized
 		}
 		// log.Println("session found in context ", session)
-		usr := session.User
+		if usr, isOk := session.User.(models.Authorizer); isOk == false {
+			c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserHasNoRoles.Error(), Code: 0})
+			return ErrUserHasNoRoles
+		}
 		// log.Println("user session role", usr.GetRole())
-		for _, elem := range a.roles {
-			if elem == usr.GetRole() {
-				// log.Println("auth ok", usr.GetUniqueLogin())
-				next(c)
-				return nil
-			}
+		if usr.GetAuthorization()&a.roles != 0 {
+			next(c)
+			return nil
 		}
 		c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserRolesNotMatch.Error(), Code: 0})
 		return ErrUserRolesNotMatch

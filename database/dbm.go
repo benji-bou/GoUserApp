@@ -2,7 +2,7 @@ package dbm
 
 import (
 	"errors"
-	"gotools"
+	"gotools/reflectutil"
 
 	// "log"
 	"math/rand"
@@ -90,7 +90,7 @@ func (db *MongoDatabaseSession) Close() {
 
 //GetRandomOneModel get one model random in all documents
 func (db *MongoDatabaseSession) GetRandomOneModel(model interface{}) error {
-	collectionName := tools.GetInnerTypeName(model)
+	collectionName := reflectutil.GetInnerTypeName(model)
 	collection := db.Database.C(collectionName)
 	countElem, err := collection.Count()
 	if err != nil {
@@ -109,9 +109,9 @@ func (db *MongoDatabaseSession) GetRandomOneModel(model interface{}) error {
 //return an err if soimething bad appened
 func (db *MongoDatabaseSession) GetModels(mongoQuery M, resultInterface interface{}, limit int, skip int) (interface{}, error) {
 
-	collectionName := tools.GetInnerTypeName(resultInterface)
+	collectionName := reflectutil.GetInnerTypeName(resultInterface)
 	collection := db.Database.C(collectionName)
-	result := tools.CreatePtrToSliceFromInterface(resultInterface)
+	result := reflectutil.CreatePtrToSliceFromInterface(resultInterface)
 	var err error = nil
 	switch {
 	case limit <= 0 && skip <= 0:
@@ -123,12 +123,12 @@ func (db *MongoDatabaseSession) GetModels(mongoQuery M, resultInterface interfac
 	case limit > 0 && skip > 0:
 		err = collection.Find(bson.M(mongoQuery)).Skip(skip).Limit(limit).All(result)
 	}
-	resultInterface = tools.Dereference(result)
+	resultInterface = reflectutil.Dereference(result)
 	return resultInterface, err
 }
 
 func (db *MongoDatabaseSession) GetOneModel(mongoQuery M, result interface{}) error {
-	collectionName := tools.GetInnerTypeName(result)
+	collectionName := reflectutil.GetInnerTypeName(result)
 	collection := db.Database.C(collectionName)
 	err := collection.Find(bson.M(mongoQuery)).One(result)
 	return err
@@ -141,7 +141,7 @@ func (db *MongoDatabaseSession) GetOneModel(mongoQuery M, result interface{}) er
 // }
 
 func (db *MongoDatabaseSession) InsertModel(model ...interface{}) error {
-	sortedModel := tools.SortArrayByType(model)
+	sortedModel := reflectutil.SortArrayByType(model)
 	err := &DBError{}
 	err.Errs = make([]error, 0)
 	for collectionName, models := range sortedModel {
@@ -158,14 +158,14 @@ func (db *MongoDatabaseSession) InsertModel(model ...interface{}) error {
 }
 
 func (db *MongoDatabaseSession) UpdateModelId(id interface{}, model interface{}) error {
-	collectionName := tools.GetInnerTypeName(model)
+	collectionName := reflectutil.GetInnerTypeName(model)
 	collection := db.Database.C(collectionName)
 	_, err := collection.UpsertId(id, model)
 	return err
 }
 
 func (db *MongoDatabaseSession) RemoveModel(mongoQuery M, model interface{}) error {
-	collectionName := tools.GetInnerTypeName(model)
+	collectionName := reflectutil.GetInnerTypeName(model)
 	collection := db.Database.C(collectionName)
 	_, err := collection.RemoveAll(mongoQuery)
 	return err

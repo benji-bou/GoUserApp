@@ -9,7 +9,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"gopkg.in/mgo.v2"
-	"gotools"
+	"gotools/reflectutil"
 	"log"
 	"time"
 )
@@ -64,7 +64,6 @@ func NewUserDefault(user User) *UserDefault {
 
 //User Represent a basic user
 
-//TODO: Change User to an interface
 type User interface {
 	SetId(id bson.ObjectId)
 	GetId() bson.ObjectId
@@ -72,8 +71,6 @@ type User interface {
 	SetUniqueLogin(UniqueLogin string)
 	GetPassword() []byte
 	SetPassword(pass []byte)
-	GetRole() string
-	SetRole(role string)
 	GetFriends() []User
 	AddFriend(user User) error
 	RemoveFriend(user User) error
@@ -82,11 +79,11 @@ type User interface {
 //User Represent a basic user
 
 type UserDefault struct {
-	Id          bson.ObjectId `bson:"_id" json:"id"`
-	Password    []byte        `bson:"password" json:"-"`
-	UniqueLogin string        `bson:"uniqueLogin" json:"uniqueLogin"`
-	Role        string        `bson:"role" json:"-"`
-	Friends     []UserDefault `bson:"friends" json:"friends"`
+	Id          bson.ObjectId      `bson:"_id" json:"id"`
+	Password    []byte             `bson:"password" json:"-"`
+	UniqueLogin string             `bson:"uniqueLogin" json:"uniqueLogin"`
+	Role        AuthorizationLevel `bson:"roles" json:"roles"`
+	Friends     []UserDefault      `bson:"friends" json:"friends"`
 }
 
 type UserDefaultExtended struct {
@@ -124,12 +121,12 @@ func (u *UserDefault) SetPassword(pass []byte) {
 	u.Password = pass
 }
 
-func (u *UserDefault) GetRole() string {
+func (u *UserDefault) GetAuthorization() AuthorizationLevel {
 	return u.Role
 }
 
-func (u *UserDefault) SetRole(role string) {
-	u.Role = role
+func (u *UserDefault) SetAuthorization(role AuthorizationLevel) {
+	u.Role = u.Role | role
 }
 
 func (u *UserDefault) GetFriends() []User {
@@ -215,7 +212,7 @@ func (m *DBUserManage) IsExist(user User) bool {
 	u := &UserDefault{}
 	if err := m.GetByUniqueLogin(user.GetUniqueLogin(), u); err == nil {
 		log.Println("IsExist user ", u)
-		return tools.NotEmpty(u)
+		return reflectutil.NotEmpty(u)
 	} else if err == mgo.ErrNotFound {
 		return false
 	}

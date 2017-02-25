@@ -6,6 +6,7 @@ import (
 	"goappuser/database"
 	"gopkg.in/mgo.v2/bson"
 	"log"
+	"net/http"
 	"time"
 )
 
@@ -28,7 +29,7 @@ func NewSessionManager(isSecure bool, duration time.Time, db dbm.DatabaseQuerier
 	return manager
 }
 
-func (sm *SessionManager) CreateSession(user User) (Session, *echo.Cookie, error) {
+func (sm *SessionManager) CreateSession(user User) (Session, *http.Cookie, error) {
 	if session, err := NewSession(); err != nil {
 		log.Println("Session - CreateSession -", err)
 		return session, nil, err
@@ -77,13 +78,13 @@ func NewSession() (Session, error) {
 	return s, nil
 }
 
-func writeSessionCookie(s Session) *echo.Cookie {
-	cookie := new(echo.Cookie)
+func writeSessionCookie(s Session) *http.Cookie {
+	cookie := new(http.Cookie)
 	//	cookie.SetSecure(true)
 	// cookie.SetHTTPOnly(true)
-	cookie.SetName("sessionId")
-	cookie.SetValue(s.Id.Hex())
-	cookie.SetExpires(manager.duration)
+	cookie.Name = "sessionId"
+	cookie.Value = s.Id.Hex()
+	cookie.Expires = manager.duration
 	return cookie
 }
 
@@ -92,6 +93,6 @@ func readSessionCookie(c echo.Context) (bson.ObjectId, error) {
 	if err != nil {
 		return bson.ObjectId(""), err
 	}
-	strId := cookie.Value()
+	strId := cookie.Value
 	return bson.ObjectIdHex(strId), nil
 }
