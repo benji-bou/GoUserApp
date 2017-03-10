@@ -4,7 +4,6 @@ import (
 	"errors"
 	"gotools/reflectutil"
 
-	// "log"
 	"math/rand"
 
 	"gopkg.in/mgo.v2"
@@ -29,10 +28,12 @@ func (err *DBError) Error() string {
 }
 
 type DatabaseQuerier interface {
-	GetModels(mongoQuery M, resultInterface interface{}, limit int, skip int) (interface{}, error)
+	GetModels(mongoQuery M, resultInterface interface{}, limit int, skip int) error
 	GetOneModel(mongoQuery M, result interface{}) error
+	AggregateModels(mongoQuery []M, resultInterface interface{}, collectionName string) error
 	InsertModel(model ...interface{}) error
 	UpdateModelId(Id interface{}, model interface{}) error
+	Update(query M, update M, model interface{}) (interface{}, error)
 	RemoveModel(mongoQuery M, model interface{}) error
 	//TODO: Create RemoveModel
 	//TODO: make isExist work
@@ -107,11 +108,11 @@ func (db *MongoDatabaseSession) GetRandomOneModel(model interface{}) error {
 //limit of result if limit < 0 no limit used
 //skip corresponding the number elements to skip
 //return an err if soimething bad appened
-func (db *MongoDatabaseSession) GetModels(mongoQuery M, resultInterface interface{}, limit int, skip int) (interface{}, error) {
+func (db *MongoDatabaseSession) GetModels(mongoQuery M, result interface{}, limit int, skip int) error {
 
-	collectionName := reflectutil.GetInnerTypeName(resultInterface)
+	collectionName := reflectutil.GetInnerTypeName(result)
 	collection := db.Database.C(collectionName)
-	result := reflectutil.CreatePtrToSliceFromInterface(resultInterface)
+	// result := reflectutil.CreatePtrToSliceFromInterface(resultInterface)
 	var err error = nil
 	switch {
 	case limit <= 0 && skip <= 0:
@@ -123,8 +124,20 @@ func (db *MongoDatabaseSession) GetModels(mongoQuery M, resultInterface interfac
 	case limit > 0 && skip > 0:
 		err = collection.Find(bson.M(mongoQuery)).Skip(skip).Limit(limit).All(result)
 	}
-	resultInterface = reflectutil.Dereference(result)
-	return resultInterface, err
+	return err
+}
+
+func (db *MongoDatabaseSession) AggregateModels(mongoQuery []M, resultInterface interface{}, collectionName string) error {
+	if collectionName == "" {
+		collectionName = reflectutil.GetInnerTypeName(resultInterface)
+	}
+	collection := db.Database.C(collectionName)
+	// groupByQ := make([]bson.M, 0, len(groupBy))
+	// for _, m := range groupBy {
+	// 	groupByQ = append(groupByQ, bson.M{"$group": m})
+	// }
+	err := collection.Pipe(mongoQuery).All(resultInterface)
+	return err
 }
 
 func (db *MongoDatabaseSession) GetOneModel(mongoQuery M, result interface{}) error {
@@ -155,6 +168,18 @@ func (db *MongoDatabaseSession) InsertModel(model ...interface{}) error {
 		return err
 	}
 	return nil
+}
+
+func (db *MongoDatabaseSession) Update(query M, update M, model interface{}) (interface{}, error) {
+	collectionName := reflectutil.GetInnerTypeName(model)
+	collection := db.Database.C(collectionName)
+	change := mgo.Change{
+		Update:    update,
+		Upsert:    true,
+		ReturnNew: true,
+	}
+	res, err := collection.Find(query).Apply(change, model)
+	return res, err
 }
 
 func (db *MongoDatabaseSession) UpdateModelId(id interface{}, model interface{}) error {

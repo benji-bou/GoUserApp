@@ -1,5 +1,9 @@
 package models
 
+import (
+	"fmt"
+)
+
 type AuthorizationLevel byte
 
 const (
@@ -7,36 +11,46 @@ const (
 	Basic
 	Private
 	Organisation
+	OrganisationAdmin
 	Admin
 	Root
 )
 
 type Authorizer interface {
 	GetAuthorization() AuthorizationLevel
+	AddAuthorization(newAuthlvl AuthorizationLevel)
 }
 
 func (a AuthorizationLevel) MarshalJSON() ([]byte, error) {
-	return []byte(a.Description()), nil
+	return []byte(fmt.Sprint("\"", a.Description(), "\"")), nil
 }
 
 func (a AuthorizationLevel) Description() string {
 	var result = ""
-	switch {
-	case a&Public != 0:
+
+	if a&Public != 0 {
 		result += "Public|"
-	case a&Basic != 0:
+	}
+	if a&Basic != 0 {
 		result += "Basic|"
-	case a&Private != 0:
+	}
+	if a&Private != 0 {
 		result += "Private|"
-	case a&Organisation != 0:
+	}
+	if a&Organisation != 0 {
 		result += "Organisation|"
-	case a&Admin != 0:
+	}
+	if a&OrganisationAdmin != 0 {
+		result += "OrganisationAdmin|"
+	}
+	if a&Admin != 0 {
 		result += "Admin|"
-	case a&Root != 0:
+	}
+	if a&Root != 0 {
 		result += "Root|"
 	}
 	if length := len(result); length > 0 {
-		result = result[:length]
+		result = result[:length-1]
 	}
 	return result
 }
