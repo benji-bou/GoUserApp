@@ -99,16 +99,16 @@ func (m *DBUserManage) GetById(id string, user models.User) error {
 }
 
 //Authenticate log the user with username and password. Try to retrieve models.User type passed in param
-func (m *DBUserManage) Authenticate(username, password string, user models.User) (models.User, error) {
+func (m *DBUserManage) Authenticate(username, password string, user models.User) error {
 	err := m.GetByEmail(username, user)
 	if err != nil {
-		return nil, ErrUserNotFound
+		return ErrUserNotFound
 	}
 	if ok := m.auth.Compare([]byte(password), user.GetPassword()); ok == true {
-		return user, nil
+		return nil
 	}
 	log.Println(ErrInvalidCredentials.Error(), username, password)
-	return nil, ErrInvalidCredentials
+	return ErrInvalidCredentials
 }
 
 func (m *DBUserManage) AddFriend(user, friend models.User) error {

@@ -3,7 +3,11 @@ package security
 import (
 	"github.com/labstack/echo"
 	dbm "goappuser/database"
+	"goappuser/manager/mngsession"
+	"goappuser/models"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/mgo.v2/bson"
+	"log"
 )
 
 func NewCustomHeaderAuth(db dbm.DatabaseQuerier, usernameKey, passwordKey, tokenKey string) *CustomHeaderAuth {
@@ -28,33 +32,18 @@ func (ha *CustomHeaderAuth) Compare(clearPassword, realmPassword []byte) bool {
 	return errcmp == nil
 }
 
-// func (ha *CustomHeaderAuth) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
-// 	return func(c echo.Context) error {
-// 		s, _ := ha.ReadSessionUser(c)
-// 		c.Set("Session", &s)
-// 		next(c)
-// 		return nil
-// 	}
-// }
+func (ha *CustomHeaderAuth) ReadSession(c echo.Context, s models.Sessionizer) error {
+	token := c.Request().Header.Get(ha.tokenKey)
+	if token == "" {
+		log.Println("In header request didn't found", ha.tokenKey, "key", c.Request().Header)
+		return mngsession.ErrNoSessionFound
+	}
+	return ha.db.GetOneModel(dbm.M{"_id": bson.ObjectIdHex(token)}, s)
+}
 
-// func (ha *CustomHeaderAuth) ReadSessionUser(c echo.Context) (*models.Session, error) {
-// 	sessionId := c.Request().Header.Get(ha.tokenKey)
-// 	s := &models.Session{}
-// 	if errDB := ha.db.GetOneModel(dbm.M{"_id": sessionId}, s); errDB != nil {
-// 		return nil, errDB
-// 	}
-// 	return s, nil
-// }
-
-// func (ha *CustomHeaderAuth) WriteSessionUser(c echo.Context, user models.User) error {
-// 	if session, err := models.NewSession(); err != nil {
-// 		log.Println("Session - CreateSession -", err)
-// 		return err
-// 	} else {
-// 		session.User = user
-// 		session.Id = bson.NewObjectId()
-// 		errs := ha.db.InsertModel(session)
-// 		c.Request().Header.Set(ha.tokenKey, session.Id.Hex())
-// 		return errs
-// 	}
-// }
+func (ha *CustomHeaderAuth) WriteSession(c echo.Context, s models.Sessionizer) error {
+	sessionId := bson.NewObjectId()
+	c.Response().Header().Set(ha.tokenKey, sessionId.Hex())
+	s.SetId(sessionId)
+	return ha.db.InsertModel(s)
+}

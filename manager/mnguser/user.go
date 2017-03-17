@@ -30,7 +30,7 @@ type UserManager interface {
 	//
 	GetById(id string, user models.User) error
 	//Authenticate
-	Authenticate(username, password string, user models.User) (models.User, error)
+	Authenticate(username, password string, user models.User) error
 	//Logout the current user
 	Logout(user models.User) error
 	//Add Friend

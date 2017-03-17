@@ -8,7 +8,7 @@ type Sessionizer interface {
 	GetId() bson.ObjectId
 	SetId(id bson.ObjectId)
 	GetUser() User
-	SetUser(user User)
+	// SetUser(user User)
 }
 
 type Session struct {

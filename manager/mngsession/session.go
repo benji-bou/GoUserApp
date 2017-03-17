@@ -11,15 +11,15 @@ var (
 	ErrSessionNotSessionizer = errors.New("Session Type is not a sessionizer")
 )
 
-type SessionUserReader interface {
-	ReadSessionUser(c echo.Context, s models.Sessionizer) error
+type SessionReader interface {
+	ReadSession(c echo.Context, s models.Sessionizer) error
 }
 
-type SessionUserWriter interface {
-	WriteSessionUser(c echo.Context, user models.User) error
+type SessionWriter interface {
+	WriteSession(c echo.Context, s models.Sessionizer) error
 }
 
 type SessionUserIo interface {
-	SessionUserReader
-	SessionUserWriter
+	SessionReader
+	SessionWriter
 }

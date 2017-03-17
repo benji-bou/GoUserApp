@@ -28,13 +28,13 @@ func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.Han
 		session, isOk := c.Get("Session").(models.Sessionizer)
 		if isOk == false {
 			log.Println("In Authorization Session has not been found")
-			c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserNotAuthorized.Error(), Code: 0})
+			return c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserNotAuthorized.Error(), Code: 0})
 			return ErrUserNotAuthorized
 		}
 		// log.Println("session found in context ", session)
 		usr, isOk := session.GetUser().(models.Authorizer)
 		if isOk == false {
-			c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserHasNoRoles.Error(), Code: 0})
+			return c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserHasNoRoles.Error(), Code: 0})
 			return ErrUserHasNoRoles
 		}
 		log.Println("user, ", usr.(models.User).GetEmail(), "  role", usr.GetAuthorization().Description())
