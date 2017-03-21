@@ -9,6 +9,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"gotools/reflectutil"
 	"log"
+	"time"
 )
 
 //NewDBUserManage create a db manager user
@@ -47,6 +48,10 @@ func (m *DBUserManage) Register(user models.User) error {
 	}
 	user.SetId(bson.NewObjectId())
 	user.SetPassword(pass)
+	if userExtended, isOk := user.(models.DateConnectionTracker); isOk {
+		userExtended.SetCreationDate(time.Now())
+		userExtended.SetNewConnectionDate(time.Now())
+	}
 	log.Println("insert user", user)
 	if errInsert := m.db.InsertModel(user); errInsert != nil {
 		log.Println("error insert", errInsert, " user: ", user.GetEmail())
@@ -104,9 +109,14 @@ func (m *DBUserManage) Authenticate(username, password string, user models.User)
 	if err != nil {
 		return ErrUserNotFound
 	}
+	if userExtended, isOk := user.(models.DateConnectionTracker); isOk {
+		userExtended.SetNewConnectionDate(time.Now())
+		m.db.UpdateModelId(user.GetId(), userExtended)
+	}
 	if ok := m.auth.Compare([]byte(password), user.GetPassword()); ok == true {
 		return nil
 	}
+
 	log.Println(ErrInvalidCredentials.Error(), username, password)
 	return ErrInvalidCredentials
 }

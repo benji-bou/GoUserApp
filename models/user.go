@@ -1,9 +1,10 @@
 package models
 
 import (
-	"encoding/json"
+	// "encoding/json"
 	"errors"
 	"gopkg.in/mgo.v2/bson"
+	// "log"
 	"time"
 )
 
@@ -45,18 +46,8 @@ type UserDefault struct {
 	Id       bson.ObjectId      `bson:"_id" json:"id"`
 	Password []byte             `bson:"password" json:"-"`
 	Email    string             `bson:"email" json:"email"`
-	Role     AuthorizationLevel `bson:"roles" json:"roles"`
-	Friends  []UserDefault      `bson:"friends" json:"friends"`
-}
-
-type UserDefaultExtended struct {
-	UserDefault        `bson:"credentials,inline"`
-	Name               string    `bson:"name" json:"name"`
-	Surname            string    `bson:"surname" json:"surname"`
-	Pseudo             string    `bson:"pseudo" json:"pseudo"`
-	DateCreate         time.Time `bson:"created" json:"created"`
-	DateLastConnection time.Time `bson:"lastconnection" json:"lastconnection,omitempty"`
-	BirthDate          time.Time `bson:"birthdate" json:"birthdate,omitempty"`
+	Role     AuthorizationLevel `bson:"roles" json:"roles,omitempty"`
+	Friends  []UserDefault      `bson:"friends" json:"friends,omitempty"`
 }
 
 func (u *UserDefault) SetId(id bson.ObjectId) {
@@ -123,17 +114,30 @@ func (u *UserDefault) RemoveFriend(user User) error {
 	return ErrUserFriendNotFound
 }
 
-func (u *UserDefault) UnmarshalJSON(data []byte) error {
-	type aliasUserDefault UserDefault
-	usr := &struct {
-		aliasUserDefault
-		Pass string `json:"password"`
-	}{}
+type DateConnectionTracker interface {
+	SetNewConnectionDate(date time.Time)
+	GetLastConnectionDate() time.Time
+	SetCreationDate(date time.Time)
+}
 
-	if err := json.Unmarshal(data, usr); err != nil {
-		return err
-	}
-	*u = UserDefault{Email: usr.Email, Password: []byte(usr.Pass), Role: usr.Role, Id: usr.Id, Friends: usr.Friends}
+type UserDefaultExtended struct {
+	UserDefault        `bson:",inline"`
+	Name               string    `bson:"name" json:"name,omitempty"`
+	Surname            string    `bson:"surname" json:"surname,omitempty"`
+	Pseudo             string    `bson:"pseudo" json:"pseudo,omitempty"`
+	DateCreate         time.Time `bson:"created" json:"created,omitempty"`
+	DateLastConnection time.Time `bson:"lastconnection" json:"lastconnection,omitempty"`
+	BirthDate          time.Time `bson:"birthdate" json:"birthdate,omitempty"`
+}
 
-	return nil
+func (u *UserDefaultExtended) SetCreationDate(date time.Time) {
+	u.DateCreate = date
+}
+
+func (u *UserDefaultExtended) SetNewConnectionDate(date time.Time) {
+	u.DateLastConnection = date
+}
+
+func (u *UserDefaultExtended) GetLastConnectionDate() time.Time {
+	return u.DateLastConnection
 }

@@ -7,7 +7,6 @@ import (
 	"goappuser/models"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"
-	"log"
 )
 
 func NewCustomHeaderAuth(db dbm.DatabaseQuerier, usernameKey, passwordKey, tokenKey string) *CustomHeaderAuth {
@@ -35,7 +34,6 @@ func (ha *CustomHeaderAuth) Compare(clearPassword, realmPassword []byte) bool {
 func (ha *CustomHeaderAuth) ReadSession(c echo.Context, s models.Sessionizer) error {
 	token := c.Request().Header.Get(ha.tokenKey)
 	if token == "" {
-		log.Println("In header request didn't found", ha.tokenKey, "key", c.Request().Header)
 		return mngsession.ErrNoSessionFound
 	}
 	return ha.db.GetOneModel(dbm.M{"_id": bson.ObjectIdHex(token)}, s)

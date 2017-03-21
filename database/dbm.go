@@ -175,7 +175,7 @@ func (db *MongoDatabaseSession) Update(query M, update M, model interface{}) (in
 	collection := db.Database.C(collectionName)
 	change := mgo.Change{
 		Update:    update,
-		Upsert:    true,
+		Upsert:    false,
 		ReturnNew: true,
 	}
 	res, err := collection.Find(query).Apply(change, model)

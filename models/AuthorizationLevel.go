@@ -1,7 +1,7 @@
 package models
 
 import (
-	"fmt"
+// "fmt"
 )
 
 type AuthorizationLevel byte
@@ -16,14 +16,18 @@ const (
 	Root
 )
 
+var (
+	Authorizations = []AuthorizationLevel{Public, Basic, Private, Organisation, OrganisationAdmin, Admin, Root}
+)
+
 type Authorizer interface {
 	GetAuthorization() AuthorizationLevel
 	AddAuthorization(newAuthlvl AuthorizationLevel)
 }
 
-func (a AuthorizationLevel) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprint("\"", a.Description(), "\"")), nil
-}
+// func (a AuthorizationLevel) MarshalJSON() ([]byte, error) {
+// 	return []byte(fmt.Sprint("\"", a.Description(), "\"")), nil
+// }
 
 func (a AuthorizationLevel) Description() string {
 	var result = ""
@@ -53,4 +57,15 @@ func (a AuthorizationLevel) Description() string {
 		result = result[:length-1]
 	}
 	return result
+}
+
+func (a AuthorizationLevel) MergeAvailableAuthorization() AuthorizationLevel {
+	var res AuthorizationLevel = 0
+	for _, auth := range Authorizations {
+		res |= auth
+		if a == auth {
+			return res
+		}
+	}
+	return res
 }
