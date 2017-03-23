@@ -76,7 +76,8 @@ func configureMongoDatabaseSession(session *mgo.Session) {
 func (db *MongoDatabaseSession) Connect() error {
 	// log.Println("DB URL = " + db.host + ":" + db.port)
 	//"mongodb://" + db.username + ":" + db.password +"@" +
-	session, err := mgo.Dial(db.host + ":" + db.port)
+	// session, err := mgo.Dial(db.host + ":" + db.port)
+	session, err := mgo.DialWithInfo(&mgo.DialInfo{Addrs: []string{db.host + ":" + db.port}, Username: db.username, Password: db.password, Database: db.db_name})
 	if err != nil {
 		panic(err)
 	}

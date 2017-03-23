@@ -59,11 +59,22 @@ func (a AuthorizationLevel) Description() string {
 	return result
 }
 
-func (a AuthorizationLevel) MergeAvailableAuthorization() AuthorizationLevel {
+func (a AuthorizationLevel) MergeLowerAuthorization() AuthorizationLevel {
 	var res AuthorizationLevel = 0
 	for _, auth := range Authorizations {
 		res |= auth
-		if a == auth {
+		if a <= auth {
+			return res
+		}
+	}
+	return res
+}
+
+func (a AuthorizationLevel) MergeHigherAuthorization() AuthorizationLevel {
+	var res AuthorizationLevel = 0
+	for i := len(Authorizations) - 1; i >= 0; i-- {
+		res |= Authorizations[i]
+		if a >= Authorizations[i] {
 			return res
 		}
 	}
