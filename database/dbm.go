@@ -3,6 +3,7 @@ package dbm
 import (
 	"errors"
 	"gotools/reflectutil"
+	"log"
 
 	"math/rand"
 
@@ -43,12 +44,13 @@ type DatabaseQuerier interface {
 type M map[string]interface{}
 
 type MongoDatabaseSession struct {
-	host     string
-	port     string
-	db_name  string
-	username string
-	password string
+	// host     string
+	// port     string
+	// db_name string
+	// username string
+	// password string
 
+	url      string
 	Database *mgo.Database
 }
 
@@ -57,8 +59,13 @@ type Modeler interface {
 	Name() string
 }
 
-func NewMongoDatabaseSession(host, port, db_name, username, password string) *MongoDatabaseSession {
-	return &MongoDatabaseSession{host, port, db_name, username, password, nil}
+func NewMongoDatabaseSessionInfo(host, port, db_name, username, password string) *MongoDatabaseSession {
+	url := "mongodb://" + username + ":" + password + "@" + host + ":" + port + "/" + db_name
+	return &MongoDatabaseSession{url: url}
+}
+
+func NewMongoDatabaseSession(url string) *MongoDatabaseSession {
+	return &MongoDatabaseSession{url: url}
 }
 
 func configureMongoDatabaseSession(session *mgo.Session) {
@@ -76,13 +83,14 @@ func configureMongoDatabaseSession(session *mgo.Session) {
 func (db *MongoDatabaseSession) Connect() error {
 	// log.Println("DB URL = " + db.host + ":" + db.port)
 	//"mongodb://" + db.username + ":" + db.password +"@" +
-	// session, err := mgo.Dial(db.host + ":" + db.port)
-	session, err := mgo.DialWithInfo(&mgo.DialInfo{Addrs: []string{db.host + ":" + db.port}, Username: db.username, Password: db.password, Database: db.db_name})
+	log.Println("Mongo trying to connect to", db.url)
+	session, err := mgo.Dial(db.url)
+	// session, err := mgo.DialWithInfo(&mgo.DialInfo{Addrs: []string{db.host + ":" + db.port}, Username: db.username, Password: db.password, Database: db.db_name})
 	if err != nil {
 		panic(err)
 	}
 	configureMongoDatabaseSession(session)
-	db.Database = session.DB(db.db_name)
+	db.Database = session.DB("")
 	return err
 }
 

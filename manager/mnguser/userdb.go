@@ -9,6 +9,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"gotools/reflectutil"
 	"log"
+	"reflect"
 	"time"
 )
 
@@ -86,7 +87,7 @@ func (m *DBUserManage) ResetPassword(user models.User, newPassword string) bool 
 func (m *DBUserManage) GetByEmail(email string, user models.User) error {
 	log.Println("retrieve from email", email)
 	if err := m.db.GetOneModel(dbm.M{"email": email}, user); err != nil {
-		log.Println("failed retrieve from email", err)
+		log.Println("failed retrieve from email", err, reflect.TypeOf(user))
 		return err
 	}
 	return nil
