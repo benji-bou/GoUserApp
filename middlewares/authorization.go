@@ -25,19 +25,19 @@ type AuthorizationMiddlewareHandler struct {
 
 func (a *AuthorizationMiddlewareHandler) Process(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// log.Println("auth with roles accepted", a.roles)
-		session, isOk := c.Get("Session").(models.Session)
-		if !isOk {
+		session, isOk := c.Get("Session").(models.Sessionizer)
+		if isOk == false {
 			log.Println("In Authorization Session has not been found")
-			c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserNotAuthorized.Error(), Code: 0})
+			return c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserNotAuthorized.Error(), Code: 0})
 			return ErrUserNotAuthorized
 		}
 		// log.Println("session found in context ", session)
-		if usr, isOk := session.User.(models.Authorizer); isOk == false {
-			c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserHasNoRoles.Error(), Code: 0})
+		usr, isOk := session.GetUser().(models.Authorizer)
+		if isOk == false {
+			return c.JSON(http.StatusUnauthorized, models.RequestError{Title: "Authorization Error", Description: ErrUserHasNoRoles.Error(), Code: 0})
 			return ErrUserHasNoRoles
 		}
-		// log.Println("user session role", usr.GetRole())
+		log.Println("user, ", usr.(models.User).GetEmail(), "  role", usr.GetAuthorization().Description())
 		if usr.GetAuthorization()&a.roles != 0 {
 			next(c)
 			return nil
