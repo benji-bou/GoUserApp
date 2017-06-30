@@ -1,5 +1,4 @@
-This goappuser permit to manage user server using gorilla framework.
+Goappuser permit to manage user for rest api. Currently dependencies to echo framework
 
-It has never been tested. Will be transform to work with echo framework 
-Some code will become obselete like middlewares security and authentications
-Which are already present in echo framework
+This is not fully tested and not ready for production
+
